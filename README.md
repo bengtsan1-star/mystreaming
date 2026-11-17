@@ -17,6 +17,7 @@ Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen inst
 - [Så använder du appen](#så-använder-du-appen)
   - [Min lista](#min-lista)
   - [Upptäck](#upptäck)
+  - [Förslag på liknande](#förslag-på-liknande)
   - [Bevakning av nya avsnitt](#bevakning-av-nya-avsnitt)
   - [Spara och flytta listan](#spara-och-flytta-listan)
 - [Inloggning](#inloggning)
@@ -36,6 +37,7 @@ Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen inst
 | **Sök och filter** | Sök på titel och filtrera på status, tjänst och kategori. Statistik överst. |
 | **Upptäck** | Bläddra bland serier och filmer som finns på svenska streamingtjänster, per tjänst och kategori. Sortera på populärast, bäst betyg eller nyast. |
 | **Fritextsökning** | Sök på valfri titel och se direkt vilka tjänster i Sverige som har den. |
+| **Liknande** | Välj en film eller serie och få förslag på liknande, med tjänster i Sverige. |
 | **Bevakning** | Visar nya och kommande avsnitt för serier du följer och markerar dem med 🆕. |
 | **Spara till fil** | Säkerhetskopia (JSON), export till Excel (CSV) och inläsning från fil. |
 
@@ -137,6 +139,18 @@ till bläddringsläget. (Filtren för typ, tjänst och kategori gäller inte vid
 **Lägga till**
 Klicka **+ Vill se** på ett kort. Titeln hamnar i *Min lista* med tjänst, kategori och år ifyllt,
 och knappen ändras till **✓ I din lista**.
+
+### Förslag på liknande
+
+Klicka **✨ Liknande** på en titel i *Min lista* eller på ett kort under *Upptäck* för att få
+förslag på liknande filmer eller serier.
+
+- Förslagen bygger på TMDB:s rekommendationer (vad andra som gillat titeln också tittat på).
+  Finns inga visas titlar med liknande genre och tema.
+- Varje förslag visar vilka tjänster i Sverige som har det, och kan läggas till med **+ Vill se**.
+- Klicka **✨ Liknande** på ett förslag för att gå vidare, eller **✕ Visa alla igen** för att
+  bläddra som vanligt.
+- Titlar du lagt till själv kopplas till TMDB via titeln första gången.
 
 ### Bevakning av nya avsnitt
 

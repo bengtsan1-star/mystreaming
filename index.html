@@ -86,7 +86,8 @@
   .show .t { font-weight: 600; font-size: 14px; line-height: 1.25; }
   .show .m { color: var(--muted); font-size: 12px; }
   .show .ov { color: var(--muted); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .show button { margin-top: auto; font-size: 13px; padding: 6px 8px; }
+  .show .btns { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
+  .show button { font-size: 13px; padding: 6px 8px; }
   .more { display: block; margin: 18px auto 0; }
   .note { font-size: 13px; color: var(--muted); }
   .note a { color: var(--accent); }
@@ -259,6 +260,10 @@
           </select>
         </label>
       </div>
+      <div id="similarBar" class="card hidden" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>✨ Förslag som liknar <b id="similarTitle"></b></span>
+        <button id="similarClear" type="button">✕ Visa alla igen</button>
+      </div>
       <p id="dInfo" class="note"></p>
       <div class="results" id="results"></div>
       <button id="more" class="more hidden">Visa fler</button>
@@ -275,6 +280,7 @@
         <li>Koppla appen till TMDB under <a href="#" data-go="discover">Upptäck</a> (gratis nyckel, se nedan).</li>
         <li>Hitta nytt att se under Upptäck och klicka <b>+ Vill se</b>.</li>
         <li>Klicka <b>+1 avsnitt</b> när du sett ett avsnitt – appen säger till när nya kommer.</li>
+        <li>Klicka <b>✨ Liknande</b> på något du gillar för att få förslag.</li>
       </ol>
     </div>
 
@@ -310,6 +316,17 @@
       <p>Skriv i sökfältet, t.ex. <i>Bonusfamiljen</i>. Varje träff visar vilka tjänster i Sverige som har titeln (📺). Töm sökfältet för att bläddra igen.</p>
       <h3>Lägga till</h3>
       <p>Klicka <b>+ Vill se</b> – titeln hamnar i Min lista med tjänst, kategori och år ifyllt.</p>
+    </details>
+
+    <details>
+      <summary>✨ Förslag på liknande</summary>
+      <p>Gillar du något? Klicka <b>✨ Liknande</b> för att få förslag på liknande filmer eller serier.</p>
+      <ul>
+        <li>Knappen finns på varje titel i <a href="#" data-go="mine">Min lista</a> och på varje kort under Upptäck.</li>
+        <li>Förslagen bygger på vad andra som gillat titeln också tittat på. Finns inga sådana visas titlar med liknande genre och tema.</li>
+        <li>Varje förslag visar vilka tjänster i Sverige som har det (📺).</li>
+        <li>Klicka <b>✨ Liknande</b> på ett förslag för att gå vidare, eller <b>✕ Visa alla igen</b> för att bläddra som vanligt.</li>
+      </ul>
     </details>
 
     <details>
@@ -663,6 +680,9 @@
       };
       actions.append(bell);
     }
+    const sim = el("button", { type: "button", textContent: "✨ Liknande" });
+    sim.onclick = () => similarFromItem(it);
+    actions.append(sim);
     const del = el("button", { type: "button", textContent: "Ta bort" });
     del.onclick = () => { if (confirm(`Ta bort "${it.title}"?`)) removeItem(it.id); };
     actions.append(del);
@@ -953,8 +973,11 @@
 
   async function search(reset) {
     const query = $("dQuery").value.trim();
-    // Vid fritextsökning gäller inte filtren (TMDB stöder inte det)
-    ["dType", "dService", "dGenre", "dSort"].forEach(id => $(id).disabled = !!query);
+    if (query) similarOf = null; // ny sökning ersätter liknande-läget
+    $("similarBar").classList.toggle("hidden", !similarOf);
+    // Vid fritextsökning och liknande gäller inte filtren (TMDB stöder inte det)
+    ["dType", "dService", "dGenre", "dSort"].forEach(id => $(id).disabled = !!(query || similarOf));
+    if (similarOf) return similarSearch(reset);
     if (query) return textSearch(query, reset);
 
     const seq = ++searchSeq;
@@ -1054,6 +1077,9 @@
       setBtn();
     };
 
+    const simBtn = el("button", { type: "button", textContent: "✨ Liknande", title: `Visa förslag som liknar ${title}` });
+    simBtn.onclick = () => showSimilar(type, r.id, title);
+
     const kind = type === "movie" ? "Film" : "Serie";
     const where = el("div", { className: "m" });
     if (lookupProviders) {
@@ -1072,8 +1098,70 @@
         el("div", { className: "m", textContent: [lookupProviders ? kind : "", year, category, r.vote_average ? "★ " + r.vote_average.toFixed(1) : ""].filter(Boolean).join(" · ") }),
         where,
         el("div", { className: "ov", textContent: r.overview || "" }),
-        btn));
+        el("div", { className: "btns" }, btn, simBtn)));
   }
+
+  // =====================================================
+  //  LIKNANDE – förslag utifrån en vald film eller serie
+  // =====================================================
+  let similarOf = null; // { type, id, title }
+
+  function showSimilar(type, id, title) {
+    similarOf = { type, id: String(id), title };
+    $("dQuery").value = "";
+    showView("discover");
+    if (discoverReady) search(true);
+  }
+
+  // Titlar i Min lista som saknar TMDB-koppling hittas via titeln
+  async function findTmdbId(it) {
+    const type = it.type === "film" ? "movie" : "tv";
+    if (it.tmdbId?.startsWith(type + ":")) return { type, id: it.tmdbId.split(":")[1] };
+    const s = await tmdb(`/search/${type}`, { query: it.title, language: "sv-SE" });
+    if (!s.results.length) throw new Error(`Hittade inte ”${it.title}” i TMDB.`);
+    update(it.id, { tmdbId: type + ":" + s.results[0].id });
+    return { type, id: String(s.results[0].id) };
+  }
+
+  async function similarFromItem(it) {
+    if (!apiKey) { showView("discover"); return; } // visar rutan för TMDB-nyckel
+    try {
+      const { type, id } = await findTmdbId(it);
+      showSimilar(type, id, it.title);
+    } catch (err) {
+      setSyncInfo(err.message, true);
+    }
+  }
+
+  async function similarSearch(reset) {
+    const seq = ++searchSeq;
+    const { type, id, title } = similarOf;
+    if (reset) { page = 1; $("results").replaceChildren(); }
+    $("similarTitle").textContent = title;
+    $("dInfo").textContent = "Letar efter liknande…";
+    $("more").disabled = true;
+    try {
+      const params = { language: "sv-SE", page };
+      // Rekommendationer bygger på vad andra tittare gillat; "similar" på genre och nyckelord
+      let data = await tmdb(`/${type}/${id}/recommendations`, params);
+      if (page === 1 && !data.results.length) data = await tmdb(`/${type}/${id}/similar`, params);
+      await loadLists(type);
+      if (seq !== searchSeq) return;
+      const genreMap = Object.fromEntries(cache[type].genres.map(g => [g.value, g.label]));
+      totalPages = Math.min(data.total_pages, 10);
+      $("dInfo").textContent = data.results.length || page > 1
+        ? "Tjänsterna i Sverige visas på varje kort."
+        : "Hittade inga förslag för den här titeln.";
+      $("results").append(...data.results.map(r => showCard(r, r.media_type || type, "", genreMap, true)));
+      page++;
+      $("more").classList.toggle("hidden", page > totalPages);
+    } catch (err) {
+      if (seq === searchSeq) $("dInfo").textContent = err.message;
+    }
+    $("more").disabled = false;
+  }
+
+  $("similarClear").onclick = () => { similarOf = null; search(true); };
 
   // =====================================================
   //  BEVAKNING AV NYA AVSNITT (TMDB)

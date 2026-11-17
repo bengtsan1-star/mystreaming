@@ -175,9 +175,16 @@ filen på den andra – eller använd GitHub-synk nedan.
 
 ### Spara listan i GitHub
 
-Listan kan sparas som en fil (`lista.json`) i ett **privat** GitHub-repo, så att du har samma lista
-på alla enheter. Appens kod är publik, men listan ligger i ett separat privat repo
-(t.ex. `bengtsan1-star/mystreaming-data`) som bara du kommer åt.
+Listan kan sparas som en fil (`lista.json`) i repot
+[`bengtsan1-star/mystreaming-data`](https://github.com/bengtsan1-star/mystreaming-data), så att du har
+samma lista på alla enheter.
+
+> 🌍 **Repot är publikt** – vem som helst kan läsa listan (titlar, status, betyg) och dess historik:
+> - Visad på GitHub: [mystreaming-data/blob/main/lista.json](https://github.com/bengtsan1-star/mystreaming-data/blob/main/lista.json)
+> - Rå fil (för andra appar och sidor): `https://raw.githubusercontent.com/bengtsan1-star/mystreaming-data/main/lista.json`
+>
+> Bara den som har din token kan ändra listan. Vill du göra den privat igen:
+> **Settings → General → Danger Zone → Change visibility** i repot.
 
 **Ställ in (en gång per enhet)**
 1. Skapa en token på [GitHub → Fine-grained token](https://github.com/settings/personal-access-tokens/new).

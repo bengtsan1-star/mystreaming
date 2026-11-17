@@ -188,8 +188,9 @@
 
     <div id="ghSettings" class="card hidden" style="margin-bottom:16px">
       <h2>☁️ Spara listan i GitHub</h2>
-      <p class="note">Listan sparas som en fil i ett <b>privat</b> GitHub-repo, så du har samma lista på alla enheter.
-        Appen synkar automatiskt när du öppnar den och efter varje ändring.</p>
+      <p class="note">Listan sparas som en fil i GitHub-repot <b>mystreaming-data</b>, så du har samma lista på alla enheter.
+        Appen synkar automatiskt när du öppnar den och efter varje ändring.
+        🌍 Repot är <b>publikt</b> – vem som helst kan läsa listan.</p>
       <ol class="note" style="padding-left:20px">
         <li>Skapa en token på <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Fine-grained token</a>.</li>
         <li>Under <b>Repository access</b>: välj <i>Only select repositories</i> → <b>mystreaming-data</b>.</li>
@@ -335,7 +336,10 @@
 
     <details>
       <summary>☁️ Spara listan i GitHub (samma lista på alla enheter)</summary>
-      <p>Listan kan sparas som filen <code>lista.json</code> i ditt <b>privata</b> repo <b>mystreaming-data</b> på GitHub. Då har du samma lista på datorn och mobilen.</p>
+      <p>Listan kan sparas som filen <code>lista.json</code> i repot <b>mystreaming-data</b> på GitHub. Då har du samma lista på datorn och mobilen.</p>
+      <p>🌍 Repot är <b>publikt</b>, så vem som helst kan läsa listan på
+        <a href="https://github.com/bengtsan1-star/mystreaming-data/blob/main/lista.json" target="_blank" rel="noopener">github.com/bengtsan1-star/mystreaming-data</a>.
+        Bara den som har din token kan ändra den.</p>
       <h3>Ställ in (en gång per enhet)</h3>
       <ol>
         <li>Skapa en token på <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Fine-grained token</a>.</li>
@@ -714,7 +718,7 @@
     }
   });
 
-  // ---------- Spara listan i GitHub (privat repo) ----------
+  // ---------- Spara listan i GitHub (repot mystreaming-data) ----------
   let gh = {};
   try { gh = JSON.parse(store.get(GH_KEY)) || {}; } catch { gh = {}; }
   const ghReady = () => !!(gh.repo && gh.path && gh.token);

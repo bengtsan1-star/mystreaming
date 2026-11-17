@@ -4,18 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mystreaming</title>
+<script>
+  // Ljust tema är standard; mörkt bara om man valt det med 🌙-knappen
+  try { if (localStorage.getItem("tittarlogg.theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}
+</script>
 <style>
   :root {
-    --bg: #f6f6f8; --card: #ffffff; --text: #1c1c22; --muted: #6b6b78;
-    --border: #e2e2e8; --accent: #5b4cdb; --accent-text: #ffffff;
+    color-scheme: light;
+    --bg: #fbfbfd; --card: #ffffff; --text: #1c1c22; --muted: #6b6b78;
+    --border: #e6e6ee; --accent: #5b4cdb; --accent-text: #ffffff;
     --watching: #2f80ed; --want: #c98a00; --done: #1f9d55; --error: #d64545;
+    --shadow: 0 1px 3px rgba(20, 20, 40, .06);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #121216; --card: #1c1c23; --text: #ececf1; --muted: #9a9aa8;
-      --border: #2c2c36; --accent: #8b7dff; --accent-text: #121216;
-      --watching: #5aa2ff; --want: #f0b429; --done: #3ccf7e; --error: #ff7a7a;
-    }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121216; --card: #1c1c23; --text: #ececf1; --muted: #9a9aa8;
+    --border: #2c2c36; --accent: #8b7dff; --accent-text: #121216;
+    --watching: #5aa2ff; --want: #f0b429; --done: #3ccf7e; --error: #ff7a7a;
+    --shadow: none;
   }
   * { box-sizing: border-box; }
   body {
@@ -28,7 +34,7 @@
   .sub { color: var(--muted); margin: 0 0 16px; }
   .hidden { display: none !important; }
 
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
   .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
   .wide { grid-column: 1 / -1; }
   label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -139,7 +145,10 @@
       <h1>📺 mystreaming</h1>
       <p class="sub">Håll koll på vad du ser – och hitta nytt att titta på.</p>
     </div>
-    <button id="logout" type="button">Logga ut</button>
+    <div style="display:flex;gap:6px">
+      <button id="themeToggle" type="button" title="Byt mellan ljust och mörkt tema"></button>
+      <button id="logout" type="button">Logga ut</button>
+    </div>
   </div>
 
   <nav class="views" id="views">
@@ -1257,6 +1266,21 @@
     else session.set("1");
     showApp();
   });
+
+  // Tema: ljust som standard, mörkt om man väljer det
+  function setThemeButton() {
+    const dark = document.documentElement.dataset.theme === "dark";
+    $("themeToggle").textContent = dark ? "☀️" : "🌙";
+    $("themeToggle").setAttribute("aria-label", dark ? "Byt till ljust tema" : "Byt till mörkt tema");
+  }
+  $("themeToggle").onclick = () => {
+    const dark = document.documentElement.dataset.theme !== "dark";
+    if (dark) document.documentElement.dataset.theme = "dark";
+    else delete document.documentElement.dataset.theme;
+    store.set("tittarlogg.theme", dark ? "dark" : null);
+    setThemeButton();
+  };
+  setThemeButton();
 
   $("logout").onclick = () => {
     store.set(AUTH_KEY, null);

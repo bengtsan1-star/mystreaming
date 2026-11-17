@@ -34,6 +34,7 @@ Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen inst
 | Del | Vad den gör |
 |---|---|
 | **Min lista** | Titlar med tjänst, typ (serie/film), kategori och status: *Tittar nu*, *Vill se* eller *Sett klart*. Avsnittsräknare för serier och betyg 1–5 stjärnor. |
+| **Bilder** | Liten omslagsbild per titel och logga per tjänst, hämtade från TMDB. |
 | **Sök och filter** | Sök på titel och filtrera på status, tjänst och kategori. Statistik överst. |
 | **Upptäck** | Bläddra bland serier och filmer som finns på svenska streamingtjänster, per tjänst och kategori. Sortera på populärast, bäst betyg eller nyast. |
 | **Fritextsökning** | Sök på valfri titel och se direkt vilka tjänster i Sverige som har den. |

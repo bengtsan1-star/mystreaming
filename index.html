@@ -133,7 +133,19 @@
   .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .topbar button { font-size: 13px; padding: 6px 10px; white-space: nowrap; flex-shrink: 0; }
 
-  @media (max-width: 560px) { li.card { grid-template-columns: 1fr; } .actions { justify-content: flex-start; } }
+  /* Bilder i listan */
+  li.item { grid-template-columns: 56px 1fr auto; }
+  .thumb { width: 56px; height: 84px; border-radius: 6px; object-fit: cover; background: var(--list-border);
+    display: flex; align-items: center; justify-content: center; font-size: 24px; align-self: start; }
+  .svc { display: inline-flex; align-items: center; gap: 4px; }
+  .svc img { width: 18px; height: 18px; border-radius: 4px; }
+
+  @media (max-width: 560px) {
+    li.card { grid-template-columns: 1fr; } .actions { justify-content: flex-start; }
+    li.item { grid-template-columns: 48px 1fr; }
+    li.item .thumb { width: 48px; height: 72px; }
+    li.item .actions { grid-column: 1 / -1; }
+  }
 </style>
 </head>
 <body>
@@ -318,6 +330,8 @@
         <li><span class="badge s-done">Sett klart</span> – sätt betyg med stjärnorna (klicka samma stjärna igen för att ta bort).</li>
       </ul>
       <p>Byt status med knapparna <b>→ Tittar nu</b>, <b>→ Vill se</b> och <b>→ Sett klart</b> till höger på varje titel.</p>
+      <h3>Bilder</h3>
+      <p>Varje titel får en liten omslagsbild och tjänsten en liten logga. De hämtas automatiskt från TMDB när du har lagt in din nyckel under Upptäck. Titlar som inte hittas får en symbol (🎬/📺) i stället.</p>
       <h3>Avsnittsräknare</h3>
       <p>För serier du tittar på visas <b>S</b> (säsong) och <b>A</b> (avsnitt). Klicka <b>+1 avsnitt</b> eller skriv in siffrorna direkt.</p>
       <h3>Hitta i listan</h3>
@@ -469,6 +483,22 @@
   };
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
+  // ---------- Loggor för tjänster (från TMDB, sparas i webbläsaren) ----------
+  const LOGOS_KEY = "tittarlogg.logos";
+  let logos = {};
+  try { logos = JSON.parse(store.get(LOGOS_KEY)) || {}; } catch { logos = {}; }
+  // "Disney+" och "Disney Plus" ska räknas som samma tjänst
+  const normSvc = s => String(s || "").toLowerCase().replace(/\+/g, "plus").replace(/[^a-z0-9åäö]/g, "");
+  const SVC_ALIASES = { hbomax: ["max"], max: ["hbomax"], primevideo: ["amazonprimevideo"], appletvplus: ["appletv"], youtube: ["youtubepremium"] };
+  function logoFor(name) {
+    const n = normSvc(name);
+    if (!n) return "";
+    if (logos[n]) return logos[n];
+    for (const a of SVC_ALIASES[n] || []) if (logos[a]) return logos[a];
+    const key = Object.keys(logos).find(k => k.startsWith(n) || n.startsWith(k));
+    return key ? logos[key] : "";
+  }
+
   // ---------- Vyer ----------
   function showView(v) {
     document.querySelectorAll("#views button").forEach(b => b.classList.toggle("active", b.dataset.v === v));
@@ -546,6 +576,7 @@
       status: $("status").value,
     });
     e.target.reset();
+    fillArtwork(); // hämta omslagsbild till den nya titeln
   });
 
   $("tabs").addEventListener("click", e => {
@@ -639,7 +670,7 @@
   function itemView(it) {
     const meta = el("div", { className: "meta" },
       el("span", { className: "badge s-" + it.status, textContent: STATUS[it.status] }),
-      el("span", { textContent: it.service }),
+      serviceView(it.service),
       el("span", { textContent: it.type === "film" ? "Film" : "Serie" }),
     );
     if (it.year) meta.append(el("span", { textContent: it.year }));
@@ -710,7 +741,19 @@
     del.onclick = () => { if (confirm(`Ta bort "${it.title}"?`)) removeItem(it.id); };
     actions.append(del);
 
-    return el("li", { className: "card item st-" + it.status }, el("div", {}, el("div", { className: "title", textContent: it.title }), meta, ...(eps ? [eps] : [])), actions);
+    // Liten omslagsbild (hämtas från TMDB), annars en symbol
+    const thumb = it.poster
+      ? el("img", { className: "thumb", src: "https://image.tmdb.org/t/p/w154" + it.poster, alt: "", loading: "lazy" })
+      : el("div", { className: "thumb", textContent: it.type === "film" ? "🎬" : "📺" });
+
+    return el("li", { className: "card item st-" + it.status }, thumb,
+      el("div", {}, el("div", { className: "title", textContent: it.title }), meta, ...(eps ? [eps] : [])), actions);
+  }
+
+  // Liten logga för tjänsten bredvid namnet
+  function serviceView(name) {
+    const logo = logoFor(name);
+    return el("span", { className: "svc" }, ...(logo ? [el("img", { src: "https://image.tmdb.org/t/p/w45" + logo, alt: "" })] : []), name);
   }
 
   render();
@@ -917,7 +960,7 @@
     ]);
     const providers = prov.results
       .sort((a, b) => (a.display_priorities?.[REGION] ?? 999) - (b.display_priorities?.[REGION] ?? 999))
-      .map(p => ({ value: String(p.provider_id), label: p.provider_name }));
+      .map(p => ({ value: String(p.provider_id), label: p.provider_name, logo: p.logo_path }));
     const genres = gen.genres
       .map(g => ({ value: String(g.id), label: g.name[0].toUpperCase() + g.name.slice(1) }))
       .sort((a, b) => a.label.localeCompare(b.label, "sv"));
@@ -969,6 +1012,7 @@
       $("keyInput").value = "";
       discoverReady = false;
       initDiscover();
+      fillArtwork();
     } catch (err) {
       apiKey = "";
       $("keyError").textContent = err.message;
@@ -1092,7 +1136,7 @@
     setBtn();
     btn.onclick = () => {
       addItem({
-        title, year, category, tmdbId,
+        title, year, category, tmdbId, poster: r.poster_path || "",
         service: svcName || "Annan",
         type: type === "movie" ? "film" : "serie",
         status: "want",
@@ -1122,6 +1166,42 @@
         where,
         el("div", { className: "ov", textContent: r.overview || "" }),
         el("div", { className: "btns" }, btn, simBtn)));
+  }
+
+  // =====================================================
+  //  BILDER I LISTAN – omslag per titel och logga per tjänst
+  // =====================================================
+  let fillingArtwork = false;
+  async function fillArtwork() {
+    if (!apiKey || fillingArtwork) return;
+    fillingArtwork = true;
+    try {
+      // Loggor för alla tjänster i Sverige
+      if (!Object.keys(logos).length) {
+        const lists = await Promise.all([loadLists("tv"), loadLists("movie")]);
+        for (const { providers } of lists) for (const p of providers) if (p.logo) logos[normSvc(p.label)] = p.logo;
+        store.set(LOGOS_KEY, JSON.stringify(logos));
+      }
+      // Omslag till titlar som saknar bild (t.ex. manuellt tillagda)
+      const missing = items.filter(it => !it.poster && !it.noPoster);
+      const found = await Promise.all(missing.map(async it => {
+        try {
+          const type = it.type === "film" ? "movie" : "tv";
+          if (it.tmdbId?.startsWith(type + ":")) {
+            const d = await tmdb(`/${type}/${it.tmdbId.split(":")[1]}`, { language: "sv-SE" });
+            return [it.id, d.poster_path ? { poster: d.poster_path } : { noPoster: true }];
+          }
+          const s = await tmdb(`/search/${type}`, { query: it.title, language: "sv-SE" });
+          const hit = s.results[0];
+          return [it.id, hit ? { poster: hit.poster_path || "", noPoster: !hit.poster_path, tmdbId: type + ":" + hit.id } : { noPoster: true }];
+        } catch { return [it.id, null]; }
+      }));
+      const byId = Object.fromEntries(found.filter(([, ch]) => ch));
+      // Uppdatera utan att ändra sortering/ändringstid
+      if (Object.keys(byId).length) items = items.map(it => byId[it.id] ? { ...it, ...byId[it.id] } : it);
+      save(true);
+    } catch { /* ingen bild är inget fel */ }
+    fillingArtwork = false;
   }
 
   // =====================================================
@@ -1258,6 +1338,7 @@
     render();
     checkEpisodes(); // automatiskt när appen öppnas
     syncGitHub();    // hämta listan från GitHub om det är inställt
+    fillArtwork();   // bilder och loggor till listan
   }
   function showLogin() {
     $("app").classList.add("hidden");

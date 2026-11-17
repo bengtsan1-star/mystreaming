@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tittarlogg</title>
+<style>
+  :root {
+    --bg: #f6f6f8; --card: #ffffff; --text: #1c1c22; --muted: #6b6b78;
+    --border: #e2e2e8; --accent: #5b4cdb; --accent-text: #ffffff;
+    --watching: #2f80ed; --want: #c98a00; --done: #1f9d55; --error: #d64545;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121216; --card: #1c1c23; --text: #ececf1; --muted: #9a9aa8;
+      --border: #2c2c36; --accent: #8b7dff; --accent-text: #121216;
+      --watching: #5aa2ff; --want: #f0b429; --done: #3ccf7e; --error: #ff7a7a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  h2 { font-size: 17px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .hidden { display: none !important; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .wide { grid-column: 1 / -1; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  input, select, button {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-width: 0;
+  }
+  button { cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+
+  .views { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .views button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 10px 16px; font-weight: 600; color: var(--muted); }
+  .views button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat { flex: 1 1 120px; }
+  .stat b { display: block; font-size: 22px; }
+  .stat span { color: var(--muted); font-size: 12px; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filters input { flex: 1 1 200px; }
+  .filters select { flex: 0 1 auto; }
+  .tabs button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  li.card { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; }
+  .title { font-weight: 600; font-size: 16px; }
+  .meta { color: var(--muted); font-size: 13px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--border); }
+  .s-watching { color: var(--watching); } .s-want { color: var(--want); } .s-done { color: var(--done); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .actions button { padding: 4px 8px; font-size: 13px; }
+  .progress { display: flex; gap: 6px; align-items: center; }
+  .progress input { width: 56px; padding: 4px 6px; }
+  .stars button { border: none; background: none; padding: 0 1px; font-size: 18px; color: var(--muted); }
+  .stars button.on { color: var(--want); }
+  .empty { text-align: center; color: var(--muted); padding: 32px; }
+  .newep { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--accent); color: var(--accent-text); border: none; cursor: pointer; }
+  .eps { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  #watchPanel { margin-bottom: 14px; }
+  #watchPanel .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #watchPanel h2 { margin: 0; }
+  #watchPanel ul { gap: 4px; margin-top: 10px; font-size: 14px; }
+  #watchPanel h3 { font-size: 13px; margin: 12px 0 0; color: var(--muted); font-weight: 600; }
+  .error { color: var(--error); }
+
+  /* Upptäck */
+  .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .show { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+  .show img, .show .noimg { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; background: var(--border); display: block; }
+  .show .noimg { display: flex; align-items: center; justify-content: center; font-size: 32px; }
+  .show .body { padding: 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .show .t { font-weight: 600; font-size: 14px; line-height: 1.25; }
+  .show .m { color: var(--muted); font-size: 12px; }
+  .show .ov { color: var(--muted); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .show button { margin-top: auto; font-size: 13px; padding: 6px 8px; }
+  .more { display: block; margin: 18px auto 0; }
+  .note { font-size: 13px; color: var(--muted); }
+  .note a { color: var(--accent); }
+
+  @media (max-width: 560px) { li.card { grid-template-columns: 1fr; } .actions { justify-content: flex-start; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>📺 Tittarlogg</h1>
+  <p class="sub">Håll koll på vad du ser – och hitta nytt att titta på.</p>
+
+  <nav class="views" id="views">
+    <button data-v="mine" class="active">Min lista</button>
+    <button data-v="discover">Upptäck</button>
+  </nav>
+
+  <!-- ===================== MIN LISTA ===================== -->
+  <section id="view-mine">
+    <form id="addForm" class="card grid-form">
+      <label class="wide">Titel
+        <input id="title" required placeholder="t.ex. The Bear">
+      </label>
+      <label>Tjänst
+        <select id="service"></select>
+      </label>
+      <label>Typ
+        <select id="type"><option value="serie">Serie</option><option value="film">Film</option></select>
+      </label>
+      <label>Kategori
+        <select id="category"></select>
+      </label>
+      <label>Status
+        <select id="status">
+          <option value="watching">Tittar nu</option>
+          <option value="want">Vill se</option>
+          <option value="done">Sett klart</option>
+        </select>
+      </label>
+      <button class="primary wide" type="submit">Lägg till</button>
+    </form>
+
+    <div id="watchPanel" class="card hidden"></div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="filters">
+      <button id="exportJson" type="button">💾 Spara lista till fil</button>
+      <button id="exportCsv" type="button">📊 Exportera till Excel (CSV)</button>
+      <button id="importBtn" type="button">📂 Läs in fil</button>
+      <input id="importFile" type="file" accept=".json,application/json" class="hidden">
+    </div>
+    <p id="fileInfo" class="note"></p>
+
+    <div class="filters">
+      <input id="search" placeholder="Sök titel…">
+      <select id="serviceFilter"></select>
+      <select id="categoryFilter"></select>
+    </div>
+    <div class="filters tabs" id="tabs">
+      <button data-f="all" class="active">Alla</button>
+      <button data-f="watching">Tittar nu</button>
+      <button data-f="want">Vill se</button>
+      <button data-f="done">Sett klart</button>
+    </div>
+
+    <ul id="list"></ul>
+  </section>
+
+  <!-- ===================== UPPTÄCK ===================== -->
+  <section id="view-discover" class="hidden">
+    <div id="keyBox" class="card" style="margin-bottom:20px">
+      <h2>Koppla till filmdatabasen TMDB</h2>
+      <p class="note">För att visa vad som finns på varje tjänst i Sverige hämtar appen data från TMDB (gratis).
+        Skapa ett konto på <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener">themoviedb.org</a>,
+        gå till <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">Inställningar → API</a>
+        och klistra in din <b>API-nyckel</b> eller <b>läs-token</b> här. Den sparas bara i din webbläsare.</p>
+      <div class="filters" style="margin:0">
+        <input id="keyInput" type="password" placeholder="Klistra in API-nyckel…" autocomplete="off">
+        <button class="primary" id="keySave">Spara</button>
+      </div>
+      <p id="keyError" class="error note"></p>
+    </div>
+
+    <div id="discoverUI" class="hidden">
+      <div class="card grid-form">
+        <label class="wide">Sök
+          <input id="dQuery" type="search" placeholder="Sök film eller serie, t.ex. Bonusfamiljen…" autocomplete="off">
+        </label>
+        <label>Typ
+          <select id="dType"><option value="tv">Serier</option><option value="movie">Filmer</option></select>
+        </label>
+        <label>Tjänst
+          <select id="dService"></select>
+        </label>
+        <label>Kategori
+          <select id="dGenre"></select>
+        </label>
+        <label>Sortera
+          <select id="dSort">
+            <option value="popular">Populärast</option>
+            <option value="rated">Bäst betyg</option>
+            <option value="new">Nyast</option>
+          </select>
+        </label>
+      </div>
+      <p id="dInfo" class="note"></p>
+      <div class="results" id="results"></div>
+      <button id="more" class="more hidden">Visa fler</button>
+      <p class="note" style="margin-top:24px">Data från TMDB. <button id="keyChange" style="padding:2px 8px;font-size:12px">Byt API-nyckel</button></p>
+    </div>
+  </section>
+</main>
+
+<script>
+  // ---------- Grunddata ----------
+  const SERVICES = [
+    "Netflix", "HBO Max", "Disney+", "Viaplay", "Prime Video", "Apple TV+",
+    "SVT Play", "TV4 Play", "SkyShowtime", "Paramount+", "Discovery+",
+    "UR Play", "Mubi", "Cineasterna", "Crunchyroll", "YouTube",
+    "Hyrfilm/köpt", "Annan",
+  ];
+  const CATEGORIES = [
+    "Action", "Animerat", "Barn & familj", "Dokumentär", "Drama", "Fantasy",
+    "Historia", "Komedi", "Krim", "Mysterium", "Reality", "Romantik",
+    "Sci-fi", "Skräck", "Sport", "Thriller", "Annat",
+  ];
+  const STATUS = { watching: "Tittar nu", want: "Vill se", done: "Sett klart" };
+  const KEY = "tittarlogg.v1";
+  const TMDB_KEY = "tittarlogg.tmdbkey";
+  const LASTCHECK_KEY = "tittarlogg.lastcheck";
+
+  const $ = id => document.getElementById(id);
+  function el(tag, props = {}, ...children) {
+    const n = Object.assign(document.createElement(tag), props);
+    n.append(...children);
+    return n;
+  }
+  const options = (sel, list, first) => sel.replaceChildren(
+    ...(first ? [el("option", { value: "", textContent: first })] : []),
+    ...list.map(v => typeof v === "string" ? el("option", { value: v, textContent: v }) : el("option", { value: v.value, textContent: v.label })));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+  };
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+  // ---------- Vyer ----------
+  $("views").addEventListener("click", e => {
+    const v = e.target.dataset.v;
+    if (!v) return;
+    document.querySelectorAll("#views button").forEach(b => b.classList.toggle("active", b === e.target));
+    $("view-mine").classList.toggle("hidden", v !== "mine");
+    $("view-discover").classList.toggle("hidden", v !== "discover");
+    if (v === "discover") initDiscover();
+  });
+
+  // =====================================================
+  //  MIN LISTA
+  // =====================================================
+  let items = [];
+  try { items = JSON.parse(store.get(KEY)) || []; } catch { items = []; }
+  let filter = "all";
+
+  options($("service"), SERVICES);
+  options($("category"), CATEGORIES, "– Välj kategori –");
+
+  function save() { store.set(KEY, JSON.stringify(items)); render(); }
+  function update(id, changes) {
+    items = items.map(it => it.id === id ? { ...it, ...changes, updated: Date.now() } : it);
+    save();
+  }
+  function addItem(data) {
+    items.unshift({ id: newId(), season: 1, episode: 1, rating: 0, category: "", updated: Date.now(), ...data });
+    save();
+  }
+
+  $("addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("title").value.trim();
+    if (!title) return;
+    addItem({
+      title,
+      service: $("service").value,
+      type: $("type").value,
+      category: $("category").value,
+      status: $("status").value,
+    });
+    e.target.reset();
+  });
+
+  $("tabs").addEventListener("click", e => {
+    if (!e.target.dataset.f) return;
+    filter = e.target.dataset.f;
+    document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b === e.target));
+    render();
+  });
+  ["search", "serviceFilter", "categoryFilter"].forEach(id => $(id).addEventListener("input", render));
+
+  // Bygg ett filter av de värden som faktiskt används i listan
+  function refreshFilter(sel, values, label) {
+    const chosen = sel.value;
+    options(sel, [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "sv")), label);
+    sel.value = [...sel.options].some(o => o.value === chosen) ? chosen : "";
+  }
+
+  // ---------- Bevakning: hjälpfunktioner ----------
+  // Serier man tittar på bevakas automatiskt, andra kan slås på med 🔔
+  const isWatched = it => it.type === "serie" && (it.watch ?? it.status === "watching");
+  const epCode = x => `S${x.s}A${x.e}`;
+  const fmtDate = d => d ? new Date(d + "T12:00").toLocaleDateString("sv-SE", { day: "numeric", month: "short" }) : "";
+  const isBehind = it => it.status === "watching" && it.latest &&
+    (it.latest.s > it.season || (it.latest.s === it.season && it.latest.e > it.episode));
+  const daysUntil = d => Math.round((new Date(d + "T12:00") - new Date()) / 864e5);
+  // Nytt = släppt sedan förra kollen, eller släppt de senaste 14 dagarna och du har inte sett det
+  const hasNew = it => isWatched(it) && (it.alert || (isBehind(it) && it.latest.date && daysUntil(it.latest.date) >= -14));
+
+  function renderWatchPanel() {
+    const panel = $("watchPanel");
+    const watched = items.filter(isWatched);
+    panel.classList.toggle("hidden", !watched.length);
+    if (!watched.length) return;
+
+    const checkBtn = el("button", { type: "button", textContent: "Kolla nu" });
+    checkBtn.onclick = () => checkEpisodes(true);
+    const last = +store.get(LASTCHECK_KEY) || 0;
+    panel.replaceChildren(el("div", { className: "head" },
+      el("h2", { textContent: `🔔 Bevakning (${watched.length} serier)` }),
+      el("span", { className: "note", id: "watchInfo",
+        textContent: last ? "Kollat " + new Date(last).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "short" }) : "Inte kollat än" },
+        " ", checkBtn)));
+
+    const news = watched.filter(hasNew);
+    if (news.length) {
+      panel.append(el("h3", { textContent: "Nya avsnitt" }), el("ul", {}, ...news.map(it =>
+        el("li", { textContent: `🆕 ${it.title} – ${epCode(it.latest)}${it.latest.name ? " ”" + it.latest.name + "”" : ""} (${fmtDate(it.latest.date)})` }))));
+    }
+    const upcoming = watched.filter(it => it.next?.date && daysUntil(it.next.date) >= 0)
+      .sort((a, b) => a.next.date.localeCompare(b.next.date));
+    if (upcoming.length) {
+      panel.append(el("h3", { textContent: "Kommande" }), el("ul", {}, ...upcoming.map(it => {
+        const d = daysUntil(it.next.date);
+        return el("li", { textContent: `📅 ${it.title} – ${epCode(it.next)} ${fmtDate(it.next.date)} (${d === 0 ? "idag" : d === 1 ? "imorgon" : `om ${d} dagar`})` });
+      })));
+    }
+    if (!news.length && !upcoming.length && last) {
+      panel.append(el("p", { className: "note", textContent: "Inga nya eller kommande avsnitt just nu." }));
+    }
+  }
+
+  function render() {
+    renderWatchPanel();
+    const count = s => items.filter(i => i.status === s).length;
+    $("stats").replaceChildren(
+      ...[["Totalt", items.length], ["Tittar nu", count("watching")], ["Vill se", count("want")], ["Sett klart", count("done")]]
+        .map(([label, n]) => el("div", { className: "card stat" }, el("b", { textContent: n }), el("span", { textContent: label })))
+    );
+
+    refreshFilter($("serviceFilter"), items.map(i => i.service), "Alla tjänster");
+    refreshFilter($("categoryFilter"), items.map(i => i.category), "Alla kategorier");
+
+    const q = $("search").value.toLowerCase();
+    const svc = $("serviceFilter").value, cat = $("categoryFilter").value;
+    const shown = items
+      .filter(i => filter === "all" || i.status === filter)
+      .filter(i => !svc || i.service === svc)
+      .filter(i => !cat || i.category === cat)
+      .filter(i => i.title.toLowerCase().includes(q))
+      .sort((a, b) => b.updated - a.updated);
+
+    if (!shown.length) {
+      $("list").replaceChildren(el("li", { className: "empty", textContent: items.length
+        ? "Inget matchar filtret."
+        : "Inget här än – lägg till något, eller hitta nytt under Upptäck!" }));
+      return;
+    }
+    $("list").replaceChildren(...shown.map(itemView));
+  }
+
+  function itemView(it) {
+    const meta = el("div", { className: "meta" },
+      el("span", { className: "badge s-" + it.status, textContent: STATUS[it.status] }),
+      el("span", { textContent: it.service }),
+      el("span", { textContent: it.type === "film" ? "Film" : "Serie" }),
+    );
+    if (it.year) meta.append(el("span", { textContent: it.year }));
+    if (it.category) meta.append(el("span", { className: "tag", textContent: it.category }));
+
+    if (it.type === "serie" && it.status === "watching") {
+      const num = (key, label) => {
+        const inp = el("input", { type: "number", min: 1, value: it[key], title: label });
+        inp.addEventListener("change", () => update(it.id, { [key]: Math.max(1, +inp.value || 1) }));
+        return inp;
+      };
+      const next = el("button", { textContent: "+1 avsnitt", type: "button" });
+      next.onclick = () => update(it.id, { episode: it.episode + 1, alert: false });
+      meta.append(el("span", { className: "progress" }, "S", num("season", "Säsong"), "A", num("episode", "Avsnitt"), next));
+    }
+
+    // Nytt-avsnitt-märke (klicka för att kvittera)
+    if (hasNew(it)) {
+      const badge = el("button", { type: "button", className: "newep", textContent: "🆕 Nytt avsnitt", title: "Klicka för att markera som sett" });
+      badge.onclick = () => update(it.id, it.status === "watching" && it.latest
+        ? { alert: false, season: it.latest.s, episode: it.latest.e }
+        : { alert: false });
+      meta.prepend(badge);
+    }
+
+    // Rad med senaste/nästa avsnitt för bevakade serier
+    let eps = null;
+    if (isWatched(it) && (it.latest || it.next || it.notFound)) {
+      const parts = [];
+      if (it.notFound) parts.push("Hittade inte serien i TMDB");
+      if (it.latest) parts.push(`Senaste: ${epCode(it.latest)} (${fmtDate(it.latest.date)})`);
+      if (it.next) parts.push(`Nästa: ${epCode(it.next)} ${fmtDate(it.next.date) || "datum ej klart"}`);
+      else if (it.showStatus === "Ended" || it.showStatus === "Canceled") parts.push("Serien är avslutad");
+      if (it.matchedName && it.matchedName.toLowerCase() !== it.title.toLowerCase()) parts.push(`(kopplad till ”${it.matchedName}”)`);
+      eps = el("div", { className: "eps", textContent: "🔔 " + parts.join(" · ") });
+    }
+
+    if (it.status === "done") {
+      const stars = el("span", { className: "stars" });
+      for (let n = 1; n <= 5; n++) {
+        const b = el("button", { type: "button", textContent: "★", className: n <= it.rating ? "on" : "", title: n + " av 5" });
+        b.onclick = () => update(it.id, { rating: it.rating === n ? 0 : n });
+        stars.append(b);
+      }
+      meta.append(stars);
+    }
+
+    const actions = el("div", { className: "actions" });
+    for (const [s, label] of Object.entries(STATUS)) {
+      if (s === it.status) continue;
+      const b = el("button", { type: "button", textContent: "→ " + label });
+      b.onclick = () => update(it.id, { status: s });
+      actions.append(b);
+    }
+    if (it.type === "serie") {
+      const bell = el("button", { type: "button", textContent: isWatched(it) ? "🔕 Sluta bevaka" : "🔔 Bevaka" });
+      bell.onclick = () => {
+        const turnOn = !isWatched(it);
+        update(it.id, { watch: turnOn });
+        if (turnOn) checkEpisodes(true, [it.id]);
+      };
+      actions.append(bell);
+    }
+    const del = el("button", { type: "button", textContent: "Ta bort" });
+    del.onclick = () => { if (confirm(`Ta bort "${it.title}"?`)) { items = items.filter(i => i.id !== it.id); save(); } };
+    actions.append(del);
+
+    return el("li", { className: "card" }, el("div", {}, el("div", { className: "title", textContent: it.title }), meta, ...(eps ? [eps] : [])), actions);
+  }
+
+  render();
+
+  // ---------- Spara till fil / läs in fil ----------
+  function download(filename, text, type) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = el("a", { href: url, download: filename });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  // JSON: komplett säkerhetskopia som kan läsas in igen
+  $("exportJson").onclick = () => {
+    download(`tittarlogg-${today()}.json`,
+      JSON.stringify({ app: "tittarlogg", version: 1, saved: new Date().toISOString(), items }, null, 2),
+      "application/json");
+    $("fileInfo").textContent = `Sparade ${items.length} titlar till fil (hamnar i Hämtade filer).`;
+  };
+
+  // CSV: för att öppna listan i Excel/Numbers (semikolon passar svensk Excel)
+  $("exportCsv").onclick = () => {
+    const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [["Titel", "Tjänst", "Typ", "Kategori", "År", "Status", "Säsong", "Avsnitt", "Betyg"]];
+    for (const i of items) rows.push([
+      i.title, i.service, i.type === "film" ? "Film" : "Serie", i.category, i.year,
+      STATUS[i.status], i.type === "serie" ? i.season : "", i.type === "serie" ? i.episode : "", i.rating || "",
+    ]);
+    download(`tittarlogg-${today()}.csv`, "﻿" + rows.map(r => r.map(cell).join(";")).join("\r\n"), "text/csv");
+    $("fileInfo").textContent = `Exporterade ${items.length} titlar till CSV.`;
+  };
+
+  $("importBtn").onclick = () => $("importFile").click();
+  $("importFile").addEventListener("change", async e => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const incoming = Array.isArray(data) ? data : data.items;
+      if (!Array.isArray(incoming)) throw new Error();
+      const valid = incoming.filter(i => i && typeof i.title === "string" && STATUS[i.status]);
+      // Slå ihop: samma titel (id) behålls i den senast ändrade versionen
+      const byId = new Map(items.map(i => [i.id, i]));
+      let added = 0, updatedCount = 0;
+      for (const i of valid) {
+        const item = { season: 1, episode: 1, rating: 0, category: "", updated: Date.now(), ...i, id: i.id || newId() };
+        const existing = byId.get(item.id);
+        if (!existing) { byId.set(item.id, item); added++; }
+        else if ((item.updated || 0) > (existing.updated || 0)) { byId.set(item.id, item); updatedCount++; }
+      }
+      items = [...byId.values()];
+      save();
+      $("fileInfo").textContent = `Läste in "${file.name}": ${added} nya, ${updatedCount} uppdaterade.`;
+    } catch {
+      $("fileInfo").textContent = `Kunde inte läsa "${file.name}" – välj en fil som sparats från Tittarlogg.`;
+    }
+  });
+
+  // =====================================================
+  //  UPPTÄCK (TMDB)
+  // =====================================================
+  const REGION = "SE";
+  let apiKey = store.get(TMDB_KEY) || "";
+  let page = 1, totalPages = 1, discoverReady = false;
+  const cache = {}; // tjänster och kategorier per typ
+
+  async function tmdb(path, params = {}) {
+    const url = new URL("https://api.themoviedb.org/3" + path);
+    for (const [k, v] of Object.entries(params)) if (v !== "" && v != null) url.searchParams.set(k, v);
+    const headers = { accept: "application/json" };
+    // Läs-token (lång) skickas som header, vanlig API-nyckel som parameter
+    if (apiKey.length > 40) headers.Authorization = "Bearer " + apiKey;
+    else url.searchParams.set("api_key", apiKey);
+    const res = await fetch(url, { headers });
+    if (res.status === 401) throw new Error("API-nyckeln godkändes inte av TMDB.");
+    if (!res.ok) throw new Error("TMDB svarade med fel " + res.status + ".");
+    return res.json();
+  }
+
+  async function loadLists(type) {
+    if (cache[type]) return cache[type];
+    const [prov, gen] = await Promise.all([
+      tmdb(`/watch/providers/${type}`, { watch_region: REGION, language: "sv-SE" }),
+      tmdb(`/genre/${type}/list`, { language: "sv-SE" }),
+    ]);
+    const providers = prov.results
+      .sort((a, b) => (a.display_priorities?.[REGION] ?? 999) - (b.display_priorities?.[REGION] ?? 999))
+      .map(p => ({ value: String(p.provider_id), label: p.provider_name }));
+    const genres = gen.genres
+      .map(g => ({ value: String(g.id), label: g.name[0].toUpperCase() + g.name.slice(1) }))
+      .sort((a, b) => a.label.localeCompare(b.label, "sv"));
+    return (cache[type] = { providers, genres });
+  }
+
+  function showKeyBox(msg = "") {
+    $("keyBox").classList.remove("hidden");
+    $("discoverUI").classList.add("hidden");
+    $("keyError").textContent = msg;
+  }
+
+  async function initDiscover() {
+    if (!apiKey) return showKeyBox();
+    if (discoverReady) return;
+    $("keyBox").classList.add("hidden");
+    $("discoverUI").classList.remove("hidden");
+    try {
+      await fillSelects();
+      discoverReady = true;
+      search(true);
+    } catch (err) {
+      showKeyBox(err.message);
+    }
+  }
+
+  async function fillSelects() {
+    const type = $("dType").value;
+    const prevSvc = $("dService").selectedOptions[0]?.text, prevGenre = $("dGenre").selectedOptions[0]?.text;
+    $("dInfo").textContent = "Hämtar tjänster och kategorier…";
+    const { providers, genres } = await loadLists(type);
+    options($("dService"), providers, "Alla tjänster");
+    options($("dGenre"), genres, "Alla kategorier");
+    // Behåll valen när man byter mellan serier och filmer om de finns
+    for (const [sel, prev] of [[$("dService"), prevSvc], [$("dGenre"), prevGenre]]) {
+      const match = [...sel.options].find(o => o.text === prev);
+      if (match) sel.value = match.value;
+    }
+  }
+
+  $("keySave").onclick = async () => {
+    const k = $("keyInput").value.trim();
+    if (!k) return;
+    apiKey = k;
+    $("keyError").textContent = "Kontrollerar…";
+    try {
+      await tmdb("/configuration");
+      store.set(TMDB_KEY, k);
+      $("keyInput").value = "";
+      discoverReady = false;
+      initDiscover();
+    } catch (err) {
+      apiKey = "";
+      $("keyError").textContent = err.message;
+    }
+  };
+  $("keyChange").onclick = () => { apiKey = ""; store.set(TMDB_KEY, null); discoverReady = false; showKeyBox(); };
+
+  $("dType").addEventListener("change", async () => {
+    try { await fillSelects(); search(true); } catch (err) { $("dInfo").textContent = err.message; }
+  });
+  ["dService", "dGenre", "dSort"].forEach(id => $(id).addEventListener("change", () => search(true)));
+  $("more").onclick = () => search(false);
+
+  // Fritextsökning: väntar en kort stund efter sista tangenttrycket
+  let typingTimer;
+  $("dQuery").addEventListener("input", () => {
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => search(true), 400);
+  });
+  $("dQuery").addEventListener("keydown", e => {
+    if (e.key === "Enter") { clearTimeout(typingTimer); search(true); }
+  });
+
+  let searchSeq = 0; // så att gamla svar inte blandas in med nya
+
+  async function search(reset) {
+    const query = $("dQuery").value.trim();
+    // Vid fritextsökning gäller inte filtren (TMDB stöder inte det)
+    ["dType", "dService", "dGenre", "dSort"].forEach(id => $(id).disabled = !!query);
+    if (query) return textSearch(query, reset);
+
+    const seq = ++searchSeq;
+    const type = $("dType").value;
+    if (reset) { page = 1; $("results").replaceChildren(); }
+    const today = new Date().toISOString().slice(0, 10);
+    const dateField = type === "movie" ? "primary_release_date" : "first_air_date";
+    const sort = $("dSort").value;
+    const params = {
+      watch_region: REGION,
+      language: "sv-SE",
+      with_watch_providers: $("dService").value,
+      with_watch_monetization_types: "flatrate|free|ads",
+      with_genres: $("dGenre").value,
+      page,
+      sort_by: sort === "rated" ? "vote_average.desc" : sort === "new" ? `${dateField}.desc` : "popularity.desc",
+    };
+    if (sort === "rated") params["vote_count.gte"] = 200;
+    if (sort === "new") { params[`${dateField}.lte`] = today; params["vote_count.gte"] = 5; }
+
+    $("dInfo").textContent = "Hämtar…";
+    $("more").disabled = true;
+    try {
+      const data = await tmdb(`/discover/${type}`, params);
+      if (seq !== searchSeq) return;
+      totalPages = Math.min(data.total_pages, 500);
+      $("dInfo").textContent = data.total_results
+        ? `${data.total_results.toLocaleString("sv-SE")} träffar`
+        : "Inga träffar för den kombinationen.";
+      const svcName = $("dService").value ? $("dService").selectedOptions[0].text : "";
+      const genreMap = Object.fromEntries((cache[type]?.genres || []).map(g => [g.value, g.label]));
+      $("results").append(...data.results.map(r => showCard(r, type, svcName, genreMap)));
+      page++;
+      $("more").classList.toggle("hidden", page > totalPages);
+    } catch (err) {
+      $("dInfo").textContent = err.message;
+    }
+    $("more").disabled = false;
+  }
+
+  async function textSearch(query, reset) {
+    const seq = ++searchSeq;
+    if (reset) { page = 1; $("results").replaceChildren(); }
+    $("dInfo").textContent = "Söker…";
+    $("more").disabled = true;
+    try {
+      const [data] = await Promise.all([
+        tmdb("/search/multi", { query, language: "sv-SE", include_adult: false, page }),
+        loadLists("tv"), loadLists("movie"),
+      ]);
+      if (seq !== searchSeq) return;
+      const hits = data.results.filter(r => r.media_type === "tv" || r.media_type === "movie");
+      totalPages = Math.min(data.total_pages, 500);
+      $("dInfo").textContent = data.total_results
+        ? `Träffar för "${query}" – tjänsterna visas på varje kort`
+        : `Inga träffar för "${query}".`;
+      $("results").append(...hits.map(r => {
+        const genreMap = Object.fromEntries(cache[r.media_type].genres.map(g => [g.value, g.label]));
+        return showCard(r, r.media_type, "", genreMap, true);
+      }));
+      page++;
+      $("more").classList.toggle("hidden", page > totalPages);
+    } catch (err) {
+      if (seq === searchSeq) $("dInfo").textContent = err.message;
+    }
+    $("more").disabled = false;
+  }
+
+  // Vilka tjänster i Sverige har titeln (abonnemang eller gratis)?
+  async function streamingIn(type, id) {
+    const data = await tmdb(`/${type}/${id}/watch/providers`);
+    const se = data.results?.[REGION] || {};
+    const names = [...(se.flatrate || []), ...(se.free || []), ...(se.ads || [])].map(p => p.provider_name);
+    return [...new Set(names)];
+  }
+
+  function showCard(r, type, svcName, genreMap, lookupProviders = false) {
+    const title = r.title || r.name;
+    const year = (r.release_date || r.first_air_date || "").slice(0, 4);
+    const category = genreMap[String(r.genre_ids?.[0])] || "";
+    const tmdbId = type + ":" + r.id;
+    const inList = () => items.some(i => i.tmdbId === tmdbId);
+
+    const img = r.poster_path
+      ? el("img", { src: "https://image.tmdb.org/t/p/w342" + r.poster_path, alt: title, loading: "lazy" })
+      : el("div", { className: "noimg", textContent: "🎬" });
+    const btn = el("button", { type: "button" });
+    const setBtn = () => { btn.textContent = inList() ? "✓ I din lista" : "+ Vill se"; btn.disabled = inList(); };
+    setBtn();
+    btn.onclick = () => {
+      addItem({
+        title, year, category, tmdbId,
+        service: svcName || "Annan",
+        type: type === "movie" ? "film" : "serie",
+        status: "want",
+      });
+      setBtn();
+    };
+
+    const kind = type === "movie" ? "Film" : "Serie";
+    const where = el("div", { className: "m" });
+    if (lookupProviders) {
+      where.textContent = "Kollar tjänster…";
+      streamingIn(type, r.id)
+        .then(names => {
+          where.textContent = names.length ? "📺 " + names.join(", ") : "Inte på streaming i Sverige";
+          if (names.length) svcName = names[0];
+        })
+        .catch(() => { where.textContent = ""; });
+    }
+
+    return el("div", { className: "card show" }, img,
+      el("div", { className: "body" },
+        el("div", { className: "t", textContent: title }),
+        el("div", { className: "m", textContent: [lookupProviders ? kind : "", year, category, r.vote_average ? "★ " + r.vote_average.toFixed(1) : ""].filter(Boolean).join(" · ") }),
+        where,
+        el("div", { className: "ov", textContent: r.overview || "" }),
+        btn));
+  }
+
+  // =====================================================
+  //  BEVAKNING AV NYA AVSNITT (TMDB)
+  // =====================================================
+  const CHECK_EVERY = 6 * 3600e3; // kolla automatiskt högst var 6:e timme
+  let checking = false;
+
+  async function checkSeries(it) {
+    const changes = { notFound: false };
+    let id = it.tmdbId?.startsWith("tv:") ? it.tmdbId.slice(3) : null;
+    // Manuellt tillagda serier kopplas till TMDB via titeln
+    if (!id) {
+      const s = await tmdb("/search/tv", { query: it.title, language: "sv-SE" });
+      if (!s.results.length) return { notFound: true, checked: Date.now() };
+      id = String(s.results[0].id);
+      changes.tmdbId = "tv:" + id;
+      changes.matchedName = s.results[0].name;
+    }
+    const d = await tmdb(`/tv/${id}`, { language: "sv-SE" });
+    const ep = x => x ? { s: x.season_number, e: x.episode_number, date: x.air_date, name: x.name || "" } : null;
+    const latest = ep(d.last_episode_to_air), next = ep(d.next_episode_to_air);
+    const changed = it.latest && latest && (latest.s !== it.latest.s || latest.e !== it.latest.e);
+    return { ...changes, latest, next, showStatus: d.status, checked: Date.now(), alert: !!(it.alert || changed) };
+  }
+
+  async function checkEpisodes(force = false, onlyIds = null) {
+    if (checking) return;
+    const info = () => $("watchInfo");
+    if (!apiKey) {
+      if (force && info()) info().textContent = "Lägg in din TMDB-nyckel under Upptäck för att kunna bevaka.";
+      return;
+    }
+    const last = +store.get(LASTCHECK_KEY) || 0;
+    if (!force && Date.now() - last < CHECK_EVERY) return;
+    const targets = items.filter(it => isWatched(it) && (!onlyIds || onlyIds.includes(it.id)));
+    if (!targets.length) return;
+
+    checking = true;
+    if (info()) info().textContent = `Kollar ${targets.length} serier…`;
+    const results = await Promise.all(targets.map(it =>
+      checkSeries(it).then(ch => [it.id, ch]).catch(() => [it.id, null])));
+    checking = false;
+
+    const byId = Object.fromEntries(results.filter(([, ch]) => ch));
+    // Uppdatera utan att ändra sorteringen (updated rörs inte)
+    items = items.map(it => byId[it.id] ? { ...it, ...byId[it.id] } : it);
+    if (!onlyIds) store.set(LASTCHECK_KEY, String(Date.now()));
+    save();
+    const failed = results.length - Object.keys(byId).length;
+    if (failed && info()) info().textContent = `Kunde inte kolla ${failed} serier – försök igen senare.`;
+  }
+
+  checkEpisodes(); // automatiskt när appen öppnas
+</script>
+</body>
+</html>

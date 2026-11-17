@@ -181,8 +181,30 @@
       <button id="exportCsv" type="button">📊 Exportera till Excel (CSV)</button>
       <button id="importBtn" type="button">📂 Läs in fil</button>
       <input id="importFile" type="file" accept=".json,application/json" class="hidden">
+      <button id="ghSync" type="button">☁️ Synka med GitHub</button>
+      <button id="ghToggle" type="button" title="GitHub-inställningar">⚙️</button>
     </div>
     <p id="fileInfo" class="note"></p>
+
+    <div id="ghSettings" class="card hidden" style="margin-bottom:16px">
+      <h2>☁️ Spara listan i GitHub</h2>
+      <p class="note">Listan sparas som en fil i ett <b>privat</b> GitHub-repo, så du har samma lista på alla enheter.
+        Appen synkar automatiskt när du öppnar den och efter varje ändring.</p>
+      <ol class="note" style="padding-left:20px">
+        <li>Skapa en token på <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Fine-grained token</a>.</li>
+        <li>Under <b>Repository access</b>: välj <i>Only select repositories</i> → <b>mystreaming-data</b>.</li>
+        <li>Under <b>Permissions → Repository permissions</b>: sätt <b>Contents</b> till <i>Read and write</i>.</li>
+        <li>Klicka <b>Generate token</b>, kopiera den och klistra in nedan.</li>
+      </ol>
+      <div class="grid-form" style="margin:0">
+        <label>Repo (ägare/namn)<input id="ghRepo" placeholder="bengtsan1-star/mystreaming-data" autocomplete="off"></label>
+        <label>Fil<input id="ghPath" placeholder="lista.json" autocomplete="off"></label>
+        <label class="wide">Token<input id="ghToken" type="password" placeholder="github_pat_…" autocomplete="off"></label>
+        <button class="primary" id="ghSave" type="button">Spara och synka</button>
+        <button id="ghForget" type="button">Koppla från</button>
+      </div>
+      <p id="ghError" class="error note"></p>
+    </div>
 
     <div class="filters">
       <input id="search" placeholder="Sök titel…">
@@ -308,7 +330,28 @@
         <li><b>📊 Exportera till Excel (CSV)</b> – listan som tabell för Excel eller Numbers.</li>
         <li><b>📂 Läs in fil</b> – läser in en sparad JSON-fil. Titlarna slås ihop med din lista utan dubbletter.</li>
       </ul>
-      <p><b>Flytta till mobilen eller en annan dator:</b> spara till fil på den ena enheten och läs in filen på den andra.</p>
+      <p><b>Flytta till mobilen eller en annan dator:</b> spara till fil på den ena enheten och läs in filen på den andra – eller använd GitHub-synk nedan.</p>
+    </details>
+
+    <details>
+      <summary>☁️ Spara listan i GitHub (samma lista på alla enheter)</summary>
+      <p>Listan kan sparas som filen <code>lista.json</code> i ditt <b>privata</b> repo <b>mystreaming-data</b> på GitHub. Då har du samma lista på datorn och mobilen.</p>
+      <h3>Ställ in (en gång per enhet)</h3>
+      <ol>
+        <li>Skapa en token på <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Fine-grained token</a>.</li>
+        <li><b>Repository access:</b> <i>Only select repositories</i> → <b>mystreaming-data</b>.</li>
+        <li><b>Permissions → Repository permissions → Contents:</b> <i>Read and write</i>.</li>
+        <li>Klicka <b>Generate token</b> och kopiera den.</li>
+        <li>I <a href="#" data-go="mine">Min lista</a>: klicka <b>⚙️</b>, klistra in token och klicka <b>Spara och synka</b>.</li>
+      </ol>
+      <h3>Så fungerar synken</h3>
+      <ul>
+        <li>Appen synkar automatiskt när du öppnar den och några sekunder efter varje ändring.</li>
+        <li><b>☁️ Synka med GitHub</b> synkar direkt.</li>
+        <li>Ändringar från flera enheter slås ihop – den senast ändrade versionen av en titel vinner, och borttagna titlar förblir borttagna.</li>
+        <li><b>Koppla från</b> (under ⚙️) stänger av synken på enheten. Listan finns kvar både lokalt och på GitHub.</li>
+      </ul>
+      <p>Token sparas bara i din webbläsare. Ge den åtkomst till <i>endast</i> mystreaming-data, och skapa en ny om den går ut.</p>
     </details>
 
     <details>
@@ -364,6 +407,8 @@
   const KEY = "tittarlogg.v1";
   const TMDB_KEY = "tittarlogg.tmdbkey";
   const LASTCHECK_KEY = "tittarlogg.lastcheck";
+  const DELETED_KEY = "tittarlogg.deleted";
+  const GH_KEY = "tittarlogg.github";
 
   const $ = id => document.getElementById(id);
   function el(tag, props = {}, ...children) {
@@ -404,7 +449,38 @@
   options($("service"), SERVICES);
   options($("category"), CATEGORIES, "– Välj kategori –");
 
-  function save() { store.set(KEY, JSON.stringify(items)); render(); }
+  // Borttagna titlar kommer ihåg så att de inte dyker upp igen vid synk/inläsning
+  let deleted = {};
+  try { deleted = JSON.parse(store.get(DELETED_KEY)) || {}; } catch { deleted = {}; }
+
+  function save(fromSync = false) {
+    store.set(KEY, JSON.stringify(items));
+    store.set(DELETED_KEY, JSON.stringify(deleted));
+    render();
+    if (!fromSync) scheduleSync();
+  }
+  function removeItem(id) {
+    deleted[id] = Date.now();
+    items = items.filter(i => i.id !== id);
+    save();
+  }
+
+  // Slå ihop titlar från fil/GitHub med listan. Senast ändrade versionen vinner.
+  function mergeInto(incoming, incomingDeleted = {}) {
+    for (const [id, t] of Object.entries(incomingDeleted || {})) deleted[id] = Math.max(deleted[id] || 0, t);
+    const byId = new Map(items.map(i => [i.id, i]));
+    let added = 0, changed = 0;
+    for (const i of incoming) {
+      if (!i || typeof i.title !== "string" || !STATUS[i.status]) continue;
+      const item = { season: 1, episode: 1, rating: 0, category: "", updated: 0, ...i, id: i.id || newId() };
+      const existing = byId.get(item.id);
+      if (!existing) { byId.set(item.id, item); added++; }
+      else if ((item.updated || 0) > (existing.updated || 0)) { byId.set(item.id, { ...existing, ...item }); changed++; }
+    }
+    const before = byId.size;
+    items = [...byId.values()].filter(i => !(deleted[i.id] >= (i.updated || 0)));
+    return { added, changed, removed: Math.max(0, before - items.length) };
+  }
   function update(id, changes) {
     items = items.map(it => it.id === id ? { ...it, ...changes, updated: Date.now() } : it);
     save();
@@ -584,7 +660,7 @@
       actions.append(bell);
     }
     const del = el("button", { type: "button", textContent: "Ta bort" });
-    del.onclick = () => { if (confirm(`Ta bort "${it.title}"?`)) { items = items.filter(i => i.id !== it.id); save(); } };
+    del.onclick = () => { if (confirm(`Ta bort "${it.title}"?`)) removeItem(it.id); };
     actions.append(del);
 
     return el("li", { className: "card" }, el("div", {}, el("div", { className: "title", textContent: it.title }), meta, ...(eps ? [eps] : [])), actions);
@@ -604,9 +680,9 @@
   // JSON: komplett säkerhetskopia som kan läsas in igen
   $("exportJson").onclick = () => {
     download(`mystreaming-${today()}.json`,
-      JSON.stringify({ app: "mystreaming", version: 1, saved: new Date().toISOString(), items }, null, 2),
+      JSON.stringify({ app: "mystreaming", version: 1, saved: new Date().toISOString(), items, deleted }, null, 2),
       "application/json");
-    $("fileInfo").textContent = `Sparade ${items.length} titlar till fil (hamnar i Hämtade filer).`;
+    setSyncInfo(`Sparade ${items.length} titlar till fil (hamnar i Hämtade filer).`);
   };
 
   // CSV: för att öppna listan i Excel/Numbers (semikolon passar svensk Excel)
@@ -618,7 +694,7 @@
       STATUS[i.status], i.type === "serie" ? i.season : "", i.type === "serie" ? i.episode : "", i.rating || "",
     ]);
     download(`mystreaming-${today()}.csv`, "﻿" + rows.map(r => r.map(cell).join(";")).join("\r\n"), "text/csv");
-    $("fileInfo").textContent = `Exporterade ${items.length} titlar till CSV.`;
+    setSyncInfo(`Exporterade ${items.length} titlar till CSV.`);
   };
 
   $("importBtn").onclick = () => $("importFile").click();
@@ -630,23 +706,140 @@
       const data = JSON.parse(await file.text());
       const incoming = Array.isArray(data) ? data : data.items;
       if (!Array.isArray(incoming)) throw new Error();
-      const valid = incoming.filter(i => i && typeof i.title === "string" && STATUS[i.status]);
-      // Slå ihop: samma titel (id) behålls i den senast ändrade versionen
-      const byId = new Map(items.map(i => [i.id, i]));
-      let added = 0, updatedCount = 0;
-      for (const i of valid) {
-        const item = { season: 1, episode: 1, rating: 0, category: "", updated: Date.now(), ...i, id: i.id || newId() };
-        const existing = byId.get(item.id);
-        if (!existing) { byId.set(item.id, item); added++; }
-        else if ((item.updated || 0) > (existing.updated || 0)) { byId.set(item.id, item); updatedCount++; }
-      }
-      items = [...byId.values()];
+      const { added, changed } = mergeInto(incoming, data.deleted);
       save();
-      $("fileInfo").textContent = `Läste in "${file.name}": ${added} nya, ${updatedCount} uppdaterade.`;
+      setSyncInfo(`Läste in "${file.name}": ${added} nya, ${changed} uppdaterade.`);
     } catch {
-      $("fileInfo").textContent = `Kunde inte läsa "${file.name}" – välj en fil som sparats från mystreaming.`;
+      setSyncInfo(`Kunde inte läsa "${file.name}" – välj en fil som sparats från mystreaming.`, true);
     }
   });
+
+  // ---------- Spara listan i GitHub (privat repo) ----------
+  let gh = {};
+  try { gh = JSON.parse(store.get(GH_KEY)) || {}; } catch { gh = {}; }
+  const ghReady = () => !!(gh.repo && gh.path && gh.token);
+  let syncTimer = null, syncing = false, syncAgain = false;
+
+  // Base64 som klarar å, ä, ö och emoji
+  const toB64 = s => { let bin = ""; new TextEncoder().encode(s).forEach(b => bin += String.fromCharCode(b)); return btoa(bin); };
+  const fromB64 = b => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\s/g, "")), c => c.charCodeAt(0)));
+
+  async function ghFile(method, body) {
+    const path = gh.path.split("/").map(encodeURIComponent).join("/");
+    const res = await fetch(`https://api.github.com/repos/${gh.repo}/contents/${path}`, {
+      method, cache: "no-store",
+      headers: { Authorization: "Bearer " + gh.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (method === "GET" && res.status === 404) {
+      // 404 kan betyda "filen finns inte än" eller "ingen åtkomst till repot" – kolla repot
+      const repo = await fetch(`https://api.github.com/repos/${gh.repo}`, { headers: { Authorization: "Bearer " + gh.token } });
+      if (repo.ok) return null;
+      throw new Error(`Hittar inte repot ${gh.repo} – kontrollera namnet och att token har åtkomst till det.`);
+    }
+    if (res.status === 401) throw new Error("GitHub godkände inte token. Den kan ha gått ut – skapa en ny.");
+    if (res.status === 403 || res.status === 404) throw new Error("Token saknar behörighet. Sätt Contents till Read and write för repot.");
+    if (res.status === 409 || res.status === 422) { const err = new Error("conflict"); err.conflict = true; throw err; }
+    if (!res.ok) throw new Error("GitHub svarade med fel " + res.status + ".");
+    return res.json();
+  }
+
+  function setSyncInfo(text, isError = false) {
+    $("fileInfo").textContent = text;
+    $("fileInfo").classList.toggle("error", isError);
+  }
+
+  async function syncGitHub(manual = false) {
+    if (!ghReady()) {
+      if (manual) { $("ghSettings").classList.remove("hidden"); setSyncInfo("Fyll i GitHub-inställningarna för att kunna synka."); }
+      return false;
+    }
+    if (syncing) { syncAgain = true; return false; }
+    syncing = true;
+    clearTimeout(syncTimer);
+    setSyncInfo("☁️ Synkar med GitHub…");
+    try {
+      let result = { added: 0, changed: 0, removed: 0 };
+      for (let attempt = 0; attempt < 3; attempt++) {
+        // 1) Hämta det som ligger på GitHub och slå ihop
+        const remote = await ghFile("GET");
+        if (remote) {
+          const data = JSON.parse(fromB64(remote.content));
+          result = mergeInto(data.items || [], data.deleted);
+        }
+        // 2) Spara den ihopslagna listan tillbaka
+        const payload = { app: "mystreaming", version: 1, saved: new Date().toISOString(), items, deleted };
+        try {
+          await ghFile("PUT", {
+            message: `Synka lista (${items.length} titlar)`,
+            content: toB64(JSON.stringify(payload, null, 2)),
+            ...(remote ? { sha: remote.sha } : {}),
+          });
+          break;
+        } catch (err) {
+          if (!err.conflict || attempt === 2) throw err; // någon annan enhet hann före – försök igen
+        }
+      }
+      save(true);
+      const time = new Date().toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+      const news = [result.added && `${result.added} nya`, result.changed && `${result.changed} uppdaterade`, result.removed && `${result.removed} borttagna`].filter(Boolean);
+      setSyncInfo(`☁️ Synkat med GitHub ${time}${news.length ? " – " + news.join(", ") + " från andra enheter" : ""}.`);
+      $("ghError").textContent = "";
+      return true;
+    } catch (err) {
+      setSyncInfo("☁️ " + err.message, true);
+      $("ghError").textContent = err.message;
+      return false;
+    } finally {
+      syncing = false;
+      if (syncAgain) { syncAgain = false; scheduleSync(); }
+    }
+  }
+
+  // Synka en stund efter senaste ändringen
+  function scheduleSync() {
+    if (!ghReady()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => syncGitHub(), 3000);
+  }
+
+  function fillGhForm() {
+    $("ghRepo").value = gh.repo || "bengtsan1-star/mystreaming-data";
+    $("ghPath").value = gh.path || "lista.json";
+    $("ghToken").value = "";
+    $("ghToken").placeholder = gh.token ? "Sparad – klistra in en ny för att byta" : "github_pat_…";
+    $("ghForget").classList.toggle("hidden", !gh.token);
+  }
+  fillGhForm();
+
+  $("ghSync").onclick = () => syncGitHub(true);
+  $("ghToggle").onclick = () => { fillGhForm(); $("ghSettings").classList.toggle("hidden"); };
+  $("ghSave").onclick = async () => {
+    const next = {
+      repo: $("ghRepo").value.trim().replace(/^https:\/\/github\.com\//, "").replace(/\/$/, ""),
+      path: $("ghPath").value.trim() || "lista.json",
+      token: $("ghToken").value.trim() || gh.token,
+    };
+    if (!/^[\w.-]+\/[\w.-]+$/.test(next.repo)) { $("ghError").textContent = "Skriv repot som ägare/namn, t.ex. bengtsan1-star/mystreaming-data."; return; }
+    if (!next.token) { $("ghError").textContent = "Klistra in din token."; return; }
+    const prev = gh;
+    gh = next;
+    $("ghError").textContent = "";
+    if (await syncGitHub(true)) {
+      store.set(GH_KEY, JSON.stringify(gh));
+      fillGhForm();
+      $("ghSettings").classList.add("hidden");
+    } else {
+      gh = prev;
+    }
+  };
+  $("ghForget").onclick = () => {
+    if (!confirm("Koppla från GitHub på den här enheten? Listan finns kvar både här och på GitHub.")) return;
+    gh = {};
+    store.set(GH_KEY, null);
+    fillGhForm();
+    setSyncInfo("GitHub-synk är avstängd på den här enheten.");
+  };
 
   // =====================================================
   //  UPPTÄCK (TMDB)
@@ -949,6 +1142,7 @@
     $("app").classList.remove("hidden");
     render();
     checkEpisodes(); // automatiskt när appen öppnas
+    syncGitHub();    // hämta listan från GitHub om det är inställt
   }
   function showLogin() {
     $("app").classList.add("hidden");

@@ -171,7 +171,30 @@ Knapparna under statistiken i *Min lista*:
 | **📂 Läs in fil** | Läser in en sparad JSON-fil. Titlarna slås ihop med din lista – samma titel blir aldrig dubbel, och den senast ändrade versionen behålls. |
 
 **Flytta listan till en annan dator eller mobil:** spara till fil på den ena enheten och läs in
-filen på den andra.
+filen på den andra – eller använd GitHub-synk nedan.
+
+### Spara listan i GitHub
+
+Listan kan sparas som en fil (`lista.json`) i ett **privat** GitHub-repo, så att du har samma lista
+på alla enheter. Appens kod är publik, men listan ligger i ett separat privat repo
+(t.ex. `bengtsan1-star/mystreaming-data`) som bara du kommer åt.
+
+**Ställ in (en gång per enhet)**
+1. Skapa en token på [GitHub → Fine-grained token](https://github.com/settings/personal-access-tokens/new).
+2. **Repository access:** *Only select repositories* → **mystreaming-data**.
+3. **Permissions → Repository permissions → Contents:** *Read and write*.
+4. Klicka **Generate token** och kopiera den.
+5. I appen under *Min lista*: klicka **⚙️**, klistra in token och klicka **Spara och synka**.
+
+**Så fungerar synken**
+- Appen synkar automatiskt när den öppnas och några sekunder efter varje ändring.
+  **☁️ Synka med GitHub** synkar direkt.
+- Ändringar från flera enheter slås ihop: den senast ändrade versionen av en titel vinner,
+  och borttagna titlar förblir borttagna.
+- Varje synk blir en commit i repot, så du kan se historiken och återställa äldre versioner.
+- **Koppla från** (under ⚙️) stänger av synken på enheten.
+
+Token sparas bara i din webbläsare. Ge den åtkomst till *endast* datarepot.
 
 ---
 

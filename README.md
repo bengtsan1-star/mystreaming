@@ -6,6 +6,8 @@ App to keep track of streaming and give suggestions about new streaming.
 hitta nya serier och filmer att titta på och få veta när det kommer nya avsnitt.
 Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen installation.
 
+## 🌐 Öppna appen: [bengtsan1-star.github.io/mystreaming](https://bengtsan1-star.github.io/mystreaming/)
+
 ---
 
 ## Innehåll
@@ -43,6 +45,17 @@ Under Upptäck hämtas den aktuella listan över tjänster direkt från TMDB.
 
 ## Kom igång
 
+### Använd appen på nätet (enklast)
+Öppna **[bengtsan1-star.github.io/mystreaming](https://bengtsan1-star.github.io/mystreaming/)** i valfri
+webbläsare – på datorn eller i mobilen. Inget att installera.
+
+**Lägg till på hemskärmen i mobilen**
+- **iPhone (Safari):** tryck **Dela** → **Lägg till på hemskärmen**.
+- **Android (Chrome):** tryck **⋮** → **Lägg till på startskärmen**.
+
+Då öppnas appen med en egen ikon, nästan som en vanlig app.
+
+### Kör appen lokalt
 1. Ladda ner eller klona repot:
    ```bash
    git clone https://github.com/bengtsan1-star/mystreaming.git
@@ -50,8 +63,12 @@ Under Upptäck hämtas den aktuella listan över tjänster direkt från TMDB.
 2. Öppna `index.html` i din webbläsare (dubbelklicka på filen).
 3. Klart! Börja lägga till det du tittar på under **Min lista**.
 
-Om appen är publicerad med GitHub Pages kan du i stället öppna den direkt via webbadressen –
-även i mobilen.
+### Bra att veta
+- **Varje enhet och webbadress har sin egen lista och nyckel.** Webbversionen och en lokalt öppnad
+  `index.html` räknas som olika platser – lägg in TMDB-nyckeln en gång per enhet och flytta listan med
+  **💾 Spara lista till fil** och **📂 Läs in fil**.
+- **Webbversionen uppdateras automatiskt.** Sidan publiceras med GitHub Pages från grenen `main`;
+  varje push dit syns på webbadressen efter någon minut.
 
 ---
 
@@ -190,6 +207,8 @@ I *Min lista* kan du välja *Annan*. Under *Upptäck* visas alla tjänster som T
 - Data sparas i webbläsarens `localStorage`.
 - Film- och seriedata hämtas från [TMDB API v3](https://developer.themoviedb.org/) (region `SE`, språk `sv-SE`).
 - Följer webbläsarens ljusa/mörka läge och fungerar i mobilen.
+- Publiceras med **GitHub Pages** från grenen `main` (rotmappen) till
+  [bengtsan1-star.github.io/mystreaming](https://bengtsan1-star.github.io/mystreaming/).
 
 ---
 

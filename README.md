@@ -1,8 +1,8 @@
-# 📺 mystreaming – Tittarlogg
+# 📺 mystreaming
 
 App to keep track of streaming and give suggestions about new streaming.
 
-**Tittarlogg** är en enkel webbapp för att hålla koll på vad du ser på olika streamingtjänster,
+**mystreaming** är en enkel webbapp för att hålla koll på vad du ser på olika streamingtjänster,
 hitta nya serier och filmer att titta på och få veta när det kommer nya avsnitt.
 Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen installation.
 
@@ -166,7 +166,7 @@ Knapparna under statistiken i *Min lista*:
 
 | Knapp | Vad den gör |
 |---|---|
-| **💾 Spara lista till fil** | Sparar hela listan som `tittarlogg-ÅÅÅÅ-MM-DD.json` i *Hämtade filer*. Bra som säkerhetskopia. |
+| **💾 Spara lista till fil** | Sparar hela listan som `mystreaming-ÅÅÅÅ-MM-DD.json` i *Hämtade filer*. Bra som säkerhetskopia. |
 | **📊 Exportera till Excel (CSV)** | Sparar listan som en tabell som går att öppna i Excel eller Numbers. |
 | **📂 Läs in fil** | Läser in en sparad JSON-fil. Titlarna slås ihop med din lista – samma titel blir aldrig dubbel, och den senast ändrade versionen behålls. |
 

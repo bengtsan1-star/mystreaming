@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tittarlogg</title>
+<title>mystreaming</title>
 <style>
   :root {
     --bg: #f6f6f8; --card: #ffffff; --text: #1c1c22; --muted: #6b6b78;
@@ -107,7 +107,7 @@
 <!-- ===================== INLOGGNING ===================== -->
 <div id="login" class="hidden">
   <form id="loginForm" class="card">
-    <h1>📺 Tittarlogg</h1>
+    <h1>📺 mystreaming</h1>
     <label>Användarnamn
       <input id="loginUser" autocomplete="username" required autofocus>
     </label>
@@ -123,7 +123,7 @@
 <main id="app" class="hidden">
   <div class="topbar">
     <div>
-      <h1>📺 Tittarlogg</h1>
+      <h1>📺 mystreaming</h1>
       <p class="sub">Håll koll på vad du ser – och hitta nytt att titta på.</p>
     </div>
     <button id="logout" type="button">Logga ut</button>
@@ -245,6 +245,7 @@
     "Sci-fi", "Skräck", "Sport", "Thriller", "Annat",
   ];
   const STATUS = { watching: "Tittar nu", want: "Vill se", done: "Sett klart" };
+  // Lagringsnycklarna behåller det gamla namnet så att sparad data, nyckel och inloggning finns kvar
   const KEY = "tittarlogg.v1";
   const TMDB_KEY = "tittarlogg.tmdbkey";
   const LASTCHECK_KEY = "tittarlogg.lastcheck";
@@ -483,8 +484,8 @@
 
   // JSON: komplett säkerhetskopia som kan läsas in igen
   $("exportJson").onclick = () => {
-    download(`tittarlogg-${today()}.json`,
-      JSON.stringify({ app: "tittarlogg", version: 1, saved: new Date().toISOString(), items }, null, 2),
+    download(`mystreaming-${today()}.json`,
+      JSON.stringify({ app: "mystreaming", version: 1, saved: new Date().toISOString(), items }, null, 2),
       "application/json");
     $("fileInfo").textContent = `Sparade ${items.length} titlar till fil (hamnar i Hämtade filer).`;
   };
@@ -497,7 +498,7 @@
       i.title, i.service, i.type === "film" ? "Film" : "Serie", i.category, i.year,
       STATUS[i.status], i.type === "serie" ? i.season : "", i.type === "serie" ? i.episode : "", i.rating || "",
     ]);
-    download(`tittarlogg-${today()}.csv`, "﻿" + rows.map(r => r.map(cell).join(";")).join("\r\n"), "text/csv");
+    download(`mystreaming-${today()}.csv`, "﻿" + rows.map(r => r.map(cell).join(";")).join("\r\n"), "text/csv");
     $("fileInfo").textContent = `Exporterade ${items.length} titlar till CSV.`;
   };
 
@@ -524,7 +525,7 @@
       save();
       $("fileInfo").textContent = `Läste in "${file.name}": ${added} nya, ${updatedCount} uppdaterade.`;
     } catch {
-      $("fileInfo").textContent = `Kunde inte läsa "${file.name}" – välj en fil som sparats från Tittarlogg.`;
+      $("fileInfo").textContent = `Kunde inte läsa "${file.name}" – välj en fil som sparats från mystreaming.`;
     }
   });
 

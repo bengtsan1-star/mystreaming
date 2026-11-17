@@ -15,13 +15,14 @@
     --bg-top: #7fb0e6; --bg: #b7d2f1; --card: #e3eefb; --text: #0b1f3d; --muted: #3c5880;
     --border: #98bbe4; --accent: #1652a8; --accent-text: #ffffff;
     --field: #f4f8fe;
+    --list-bg: #fff8ec; --list-border: #f0dcb8; --list-hover: #fff2dc;
     --watching: #0b7bc4; --want: #a86f00; --done: #17845a; --error: #c23b3b;
     --shadow: 0 1px 3px rgba(15, 50, 100, .10);
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
     /* Mörkblå nyanser */
-    --bg-top: #123056; --bg: #0b1a2f; --card: #142a47; --field: #0f2038; --text: #e3edf8; --muted: #93a9c4;
+    --bg-top: #123056; --bg: #0b1a2f; --card: #142a47; --field: #0f2038; --list-bg: #2a2a3e; --list-border: #45405a; --list-hover: #332f48; --text: #e3edf8; --muted: #93a9c4;
     --border: #22395a; --accent: #5aa6f0; --accent-text: #08121f;
     --watching: #5fc0f5; --want: #f0b429; --done: #3ccf8e; --error: #ff8080;
     --shadow: none;
@@ -66,6 +67,15 @@
 
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
   li.card { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; }
+  /* Listan: varm ljus färg med statusfärgad kant till vänster */
+  li.item { background: var(--list-bg); border-color: var(--list-border); border-left-width: 5px; transition: background .15s; }
+  li.item:hover { background: var(--list-hover); }
+  li.item.st-watching { border-left-color: var(--watching); }
+  li.item.st-want { border-left-color: var(--want); }
+  li.item.st-done { border-left-color: var(--done); }
+  li.item .actions button, li.item .progress button, li.item .progress input { background: #ffffff; }
+  :root[data-theme="dark"] li.item .actions button, :root[data-theme="dark"] li.item .progress button,
+  :root[data-theme="dark"] li.item .progress input { background: var(--field); }
   .title { font-weight: 600; font-size: 16px; }
   .meta { color: var(--muted); font-size: 13px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
@@ -700,7 +710,7 @@
     del.onclick = () => { if (confirm(`Ta bort "${it.title}"?`)) removeItem(it.id); };
     actions.append(del);
 
-    return el("li", { className: "card" }, el("div", {}, el("div", { className: "title", textContent: it.title }), meta, ...(eps ? [eps] : [])), actions);
+    return el("li", { className: "card item st-" + it.status }, el("div", {}, el("div", { className: "title", textContent: it.title }), meta, ...(eps ? [eps] : [])), actions);
   }
 
   render();

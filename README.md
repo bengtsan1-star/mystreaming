@@ -19,7 +19,9 @@ Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen inst
   - [Upptäck](#upptäck)
   - [Bevakning av nya avsnitt](#bevakning-av-nya-avsnitt)
   - [Spara och flytta listan](#spara-och-flytta-listan)
+- [Inloggning](#inloggning)
 - [Var sparas min data?](#var-sparas-min-data)
+- [Utveckla vidare med GitHub](#utveckla-vidare-med-github)
 - [Vanliga frågor](#vanliga-frågor)
 - [Teknik](#teknik)
 - [Data och tack](#data-och-tack)
@@ -173,6 +175,26 @@ filen på den andra.
 
 ---
 
+## Inloggning
+
+Appen öppnas med en enkel inloggningsskärm:
+
+| | |
+|---|---|
+| **Användarnamn** | `stream` |
+| **Lösenord** | `stream` |
+
+- Med **Kom ihåg mig på den här enheten** ibockad loggar du bara in en gång per enhet.
+  Utan bocken gäller inloggningen tills du stänger fliken.
+- **Logga ut** finns uppe till höger.
+
+> ⚠️ Inloggningen är bara ett lås mot förbipasserande, inte riktigt skydd. Allt körs i webbläsaren
+> och källkoden är publik, så användarnamn och lösenord går att läsa i `index.html`.
+> Din lista syns ändå aldrig för andra – den ligger bara i din egen webbläsare.
+> Vill du byta användarnamn eller lösenord ändrar du `LOGIN_USER` och `LOGIN_PASS` i `index.html`.
+
+---
+
 ## Var sparas min data?
 
 Allt sparas lokalt i din webbläsare (`localStorage`) – inget skickas till någon server förutom
@@ -181,6 +203,74 @@ sökningar mot TMDB. Det betyder att:
 - listan finns kvar när du stänger och öppnar appen igen i **samma** webbläsare,
 - olika webbläsare och enheter har **var sin** lista,
 - listan försvinner om du rensar webbplatsdata i webbläsaren – spara därför till fil ibland.
+
+---
+
+## Utveckla vidare med GitHub
+
+Koden finns i repot [bengtsan1-star/mystreaming](https://github.com/bengtsan1-star/mystreaming)
+och webbversionen publiceras automatiskt med **GitHub Pages**.
+
+### Så hänger det ihop
+
+```
+Din dator                    GitHub                         Webben
+index.html  ── git push ──▶  repot mystreaming (main)  ──▶  bengtsan1-star.github.io/mystreaming
+                             GitHub Pages bygger sidan       (uppdateras efter ca 1 minut)
+```
+
+### Första gången på en ny dator
+
+1. Installera GitHubs verktyg (kräver [Homebrew](https://brew.sh/) på Mac):
+   ```bash
+   brew install gh
+   ```
+2. Logga in – webbläsaren öppnas och du godkänner med en engångskod:
+   ```bash
+   gh auth login --web --git-protocol https
+   ```
+3. Hämta koden:
+   ```bash
+   git clone https://github.com/bengtsan1-star/mystreaming.git
+   cd mystreaming
+   ```
+
+### Göra en ändring och publicera den
+
+1. Ändra i `index.html` (eller `README.md`) och testa genom att öppna filen i webbläsaren.
+2. Se vad som ändrats:
+   ```bash
+   git status
+   git diff
+   ```
+3. Spara ändringen som en *commit* med en kort beskrivning:
+   ```bash
+   git add index.html
+   git commit -m "Beskriv vad du ändrade"
+   ```
+4. Skicka upp till GitHub:
+   ```bash
+   git push
+   ```
+5. Vänta ungefär en minut och ladda om
+   [webbadressen](https://bengtsan1-star.github.io/mystreaming/) (⌘R).
+
+### Användbara kommandon
+
+| Kommando | Vad det gör |
+|---|---|
+| `git status` | Visar vilka filer som ändrats |
+| `git diff` | Visar exakt vad som ändrats |
+| `git log --oneline` | Visar historiken |
+| `git pull` | Hämtar senaste versionen från GitHub (om du ändrat på en annan dator) |
+| `git restore index.html` | Ångrar ändringar i en fil som inte är committade |
+| `gh auth status` | Visar om du är inloggad på GitHub |
+
+### GitHub Pages-inställningar
+
+Pages är inställt under **Settings → Pages** i repot: källa är grenen `main` och mappen `/` (rot).
+Där ser du också status för senaste publiceringen. Under fliken **Actions** syns varje bygge –
+blir något fel visas det där.
 
 ---
 

@@ -96,10 +96,16 @@ längst ner under Upptäck.
 
 ## Så använder du appen
 
+### Design
+Appen har en mörk bio-design: en stor bild överst med det du tittar på just nu, och dina titlar som
+affischrader – **Fortsätt titta**, **Min att-se-lista** och **Sett klart**. Klicka på en affisch för att
+öppna den. Med **▦ Affischer / ☰ Lista** väljer du visning, och **☀️/🌙** uppe till höger byter mellan
+mörkt och ljust (blått) tema.
+
 ### Min lista
 
 **Lägga till en titel**
-1. Skriv titeln i fältet **Titel**.
+1. Klicka **＋ Lägg till titel** och skriv titeln i fältet **Titel**.
 2. Välj **Tjänst**, **Typ** (serie eller film), **Kategori** och **Status**.
 3. Klicka **Lägg till** (eller tryck Enter).
 
@@ -177,7 +183,7 @@ står det *kopplad till ”…”* så att du kan se att den valt rätt.
 
 ### Spara och flytta listan
 
-Knapparna under statistiken i *Min lista*:
+Knapparna under **💾 Spara och synka** i *Min lista*:
 
 | Knapp | Vad den gör |
 |---|---|
@@ -206,7 +212,7 @@ samma lista på alla enheter.
 2. **Repository access:** *Only select repositories* → **mystreaming-data**.
 3. **Permissions → Repository permissions → Contents:** *Read and write*.
 4. Klicka **Generate token** och kopiera den.
-5. I appen under *Min lista*: klicka **⚙️**, klistra in token och klicka **Spara och synka**.
+5. I appen under *Min lista*: klicka **💾 Spara och synka** → **⚙️**, klistra in token och klicka **Spara och synka**.
 
 **Så fungerar synken**
 - Appen synkar automatiskt när den öppnas och några sekunder efter varje ändring.

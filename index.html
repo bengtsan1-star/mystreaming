@@ -191,6 +191,13 @@
   .hero .hb .play { background: #fff; color: #000; }
   .hero .hb .info { background: rgba(109,109,110,.7); color: #fff; }
 
+  /* Vänner */
+  .friend { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px 4px; }
+  .friend .fhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .friend h2 { margin: 0; }
+  .rowlabel { font-size: 14px; color: var(--muted); margin: 10px 0 0; font-weight: 600; }
+  .friend .tile .flag { top: auto; bottom: 6px; right: 6px; }
+
   /* Detaljruta */
   dialog#detail { border: none; padding: 0; background: var(--card); color: var(--text); border-radius: var(--radius);
     width: min(680px, 94vw); max-height: 90vh; box-shadow: 0 20px 60px rgba(0,0,0,.7); }
@@ -251,6 +258,7 @@
     <nav class="views" id="views">
       <button data-v="mine" class="active">Min lista</button>
       <button data-v="discover">Upptäck</button>
+      <button data-v="friends">Vänner</button>
       <button data-v="help">Hjälp</button>
     </nav>
     <div class="tools">
@@ -395,6 +403,37 @@
     </div>
   </section>
 
+  <!-- ===================== VÄNNER ===================== -->
+  <section id="view-friends" class="hidden">
+    <div class="card" style="margin-bottom:18px">
+      <h2>🔗 Dela din lista</h2>
+      <div class="grid-form" style="margin-bottom:10px">
+        <label>Ditt namn (visas för dem du delar med)
+          <input id="myName" placeholder="t.ex. Bengt" autocomplete="nickname" maxlength="40">
+        </label>
+      </div>
+      <div class="filters" style="margin-bottom:6px">
+        <button id="shareSnapshot" type="button" class="primary">🔗 Kopiera delningslänk</button>
+        <button id="shareLive" type="button">🔴 Kopiera livelänk (via GitHub)</button>
+      </div>
+      <p class="note" style="margin:4px 0 0"><b>Delningslänk:</b> en ögonblicksbild av listan just nu – fungerar för alla, inget konto behövs.
+        <b>Livelänk:</b> visar alltid din senaste lista, men kräver att du synkar med GitHub (under 💾 Spara och synka i Min lista).</p>
+      <input id="shareOut" class="hidden" readonly style="width:100%;margin-top:10px" aria-label="Delningslänk">
+      <p id="shareInfo" class="note"></p>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <h2>👥 Lägg till en väns lista</h2>
+      <div class="filters" style="margin:0">
+        <input id="friendLink" placeholder="Klistra in länken du fått…" autocomplete="off">
+        <button id="friendAdd" type="button" class="primary">Lägg till</button>
+      </div>
+      <p id="friendInfo" class="note"></p>
+    </div>
+
+    <div id="friendsList"></div>
+  </section>
+
   <!-- ===================== HJÄLP ===================== -->
   <section id="view-help" class="hidden help">
     <div class="card" style="margin-bottom:16px">
@@ -405,6 +444,7 @@
         <li>Hitta nytt att se under Upptäck och klicka <b>+ Vill se</b>.</li>
         <li>Klicka <b>+1 avsnitt</b> när du sett ett avsnitt – appen säger till när nya kommer.</li>
         <li>Klicka <b>✨ Liknande</b> på något du gillar för att få förslag.</li>
+        <li>Dela din lista med vänner under <a href="#" data-go="friends">Vänner</a>.</li>
       </ol>
     </div>
 
@@ -457,6 +497,25 @@
         <li>Varje förslag visar vilka tjänster i Sverige som har det (📺).</li>
         <li>Klicka <b>✨ Liknande</b> på ett förslag för att gå vidare, eller <b>✕ Visa alla igen</b> för att bläddra som vanligt.</li>
       </ul>
+    </details>
+
+    <details>
+      <summary>👥 Dela listor med vänner</summary>
+      <h3>Dela din lista</h3>
+      <ol>
+        <li>Gå till <a href="#" data-go="friends">Vänner</a> och skriv ditt namn.</li>
+        <li>Klicka <b>🔗 Kopiera delningslänk</b> och skicka länken (sms, mejl, chatt).</li>
+      </ol>
+      <p><b>Delningslänk</b> = en ögonblicksbild av listan just då. Vill du att vännerna alltid ska se din senaste lista använder du
+        <b>🔴 Kopiera livelänk</b> – det kräver att du synkar med GitHub (se nedan).</p>
+      <h3>Se en väns lista</h3>
+      <ul>
+        <li>Öppna länken du fått – vännens lista läggs till under <a href="#" data-go="friends">Vänner</a> automatiskt (efter inloggning).</li>
+        <li>Eller klistra in länken i <b>Lägg till en väns lista</b>.</li>
+        <li>Klicka på en affisch med <b>+ VILL SE</b> för att lägga den i din egen att-se-lista. Titlar du redan har visas med <b>✓</b>.</li>
+        <li>Livelänkar uppdateras med <b>↻ Uppdatera</b>.</li>
+      </ul>
+      <p>Den som får länken kan se titlar, status och betyg i listan – dela den bara med de du vill.</p>
     </details>
 
     <details>
@@ -602,7 +661,8 @@
   // ---------- Vyer ----------
   function showView(v) {
     document.querySelectorAll("#views button").forEach(b => b.classList.toggle("active", b.dataset.v === v));
-    for (const name of ["mine", "discover", "help"]) $("view-" + name).classList.toggle("hidden", v !== name);
+    for (const name of ["mine", "discover", "friends", "help"]) $("view-" + name).classList.toggle("hidden", v !== name);
+    if (v === "friends") renderFriends();
     if (v === "discover") initDiscover();
     window.scrollTo(0, 0);
   }
@@ -1049,7 +1109,7 @@
           result = mergeInto(data.items || [], data.deleted);
         }
         // 2) Spara den ihopslagna listan tillbaka
-        const payload = { app: "mystreaming", version: 1, saved: new Date().toISOString(), items, deleted };
+        const payload = { app: "mystreaming", version: 1, owner: myName(), saved: new Date().toISOString(), items, deleted };
         try {
           await ghFile("PUT", {
             message: `Synka lista (${items.length} titlar)`,
@@ -1510,6 +1570,212 @@
   }
 
   // =====================================================
+  //  DELA LISTOR MED VÄNNER
+  //  Ögonblicksbild: listan packas ihop i själva länken (#dela=…).
+  //  Livelänk: länken pekar på listfilen i ens publika GitHub-repo (?van=…).
+  // =====================================================
+  const NAME_KEY = "tittarlogg.name", FRIENDS_KEY = "tittarlogg.friends";
+  let friends = [];
+  try { friends = JSON.parse(store.get(FRIENDS_KEY)) || []; } catch { friends = []; }
+  const saveFriends = () => store.set(FRIENDS_KEY, JSON.stringify(friends));
+  function myName() { return (store.get(NAME_KEY) || $("myName")?.value || "").trim(); }
+
+  // Delningslänkar pekar alltid på webbversionen, även om appen körs från en lokal fil
+  const PUBLIC_URL = "https://bengtsan1-star.github.io/mystreaming/";
+  const appUrl = () => /^https?:$/.test(location.protocol) ? location.origin + location.pathname : PUBLIC_URL;
+  const toB64url = bytes => { let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+  const fromB64url = str => { const b = str.replace(/-/g, "+").replace(/_/g, "/"); return Uint8Array.from(atob(b + "===".slice((b.length + 3) % 4)), c => c.charCodeAt(0)); };
+
+  // Packa listan så kort som möjligt (komprimerad om webbläsaren kan)
+  async function packShare(obj) {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    if (window.CompressionStream) {
+      const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+      return "z" + toB64url(new Uint8Array(await new Response(stream).arrayBuffer()));
+    }
+    return "j" + toB64url(bytes);
+  }
+  async function unpackShare(str) {
+    const bytes = fromB64url(str.slice(1));
+    if (str[0] === "z") {
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      return JSON.parse(await new Response(stream).text());
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
+  // Bara det som behövs för att visa listan – inga interna uppgifter
+  const shareItems = () => items.map(({ title, type, status, service, category, year, poster, rating, season, episode, tmdbId }) =>
+    ({ title, type, status, service, category, year, poster, rating, season, episode, tmdbId }));
+
+  async function copyLink(link, label) {
+    $("shareOut").value = link;
+    $("shareOut").classList.remove("hidden");
+    try {
+      if (navigator.share && /Mobi|Android|iPhone/i.test(navigator.userAgent)) { await navigator.share({ title: "Min lista på mystreaming", url: link }); }
+      else await navigator.clipboard.writeText(link);
+      $("shareInfo").textContent = `✓ ${label} kopierad – skicka den till dina vänner.`;
+    } catch {
+      $("shareOut").select();
+      $("shareInfo").textContent = `Markera och kopiera ${label.toLowerCase()} ovan.`;
+    }
+  }
+
+  $("myName").value = myName();
+  $("myName").addEventListener("change", () => { store.set(NAME_KEY, $("myName").value.trim() || null); scheduleSync(); });
+
+  $("shareSnapshot").onclick = async () => {
+    if (!items.length) { $("shareInfo").textContent = "Din lista är tom – lägg till något först."; return; }
+    const packed = await packShare({ owner: myName() || "En vän", saved: new Date().toISOString(), items: shareItems() });
+    copyLink(`${appUrl()}#dela=${packed}`, "Delningslänken");
+  };
+  $("shareLive").onclick = async () => {
+    if (!ghReady()) {
+      $("shareInfo").textContent = "Livelänk kräver GitHub-synk. Ställ in den under 💾 Spara och synka → ⚙️ i Min lista.";
+      return;
+    }
+    await syncGitHub(); // se till att GitHub har senaste listan
+    const raw = `https://raw.githubusercontent.com/${gh.repo}/main/${gh.path}`;
+    copyLink(`${appUrl()}?van=${encodeURIComponent(raw)}`, "Livelänken");
+  };
+
+  // Tolka det man klistrat in: app-länk med #dela= eller ?van=, eller en länk till en listfil
+  function parseFriendLink(text) {
+    text = text.trim();
+    if (!text) return null;
+    const hash = text.match(/#dela=([\w-]+)/);
+    if (hash) return { packed: hash[1] };
+    let url;
+    try { url = new URL(text); } catch { return null; }
+    const live = url.searchParams.get("van");
+    if (live) return { url: live };
+    // github.com/…/blob/main/lista.json → raw-adress
+    const blob = url.href.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\/(.+)$/);
+    if (blob) return { url: `https://raw.githubusercontent.com/${blob[1]}/${blob[2]}` };
+    if (/\.json($|\?)/.test(url.pathname + url.search)) return { url: url.href };
+    return null;
+  }
+
+  async function loadFriendData(src) {
+    if (src.packed) return await unpackShare(src.packed);
+    const res = await fetch(src.url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Kunde inte hämta listan (fel ${res.status}). Är repot publikt och har ägaren synkat?`);
+    return await res.json();
+  }
+
+  async function addFriend(text) {
+    const src = parseFriendLink(text);
+    if (!src) throw new Error("Det där ser inte ut som en delningslänk från mystreaming.");
+    const data = await loadFriendData(src);
+    if (!Array.isArray(data.items)) throw new Error("Länken innehåller ingen lista.");
+    const name = (data.owner || "").trim() || "Vän " + (friends.length + 1);
+    // Samma livelänk eller samma namn med ögonblicksbild → uppdatera i stället för dubblett
+    const existing = friends.find(f => (src.url && f.url === src.url) || (!src.url && !f.url && f.name === name));
+    const entry = { id: existing?.id || newId(), name, url: src.url || "", items: data.items, saved: data.saved || "", fetched: Date.now() };
+    friends = existing ? friends.map(f => f.id === existing.id ? entry : f) : [...friends, entry];
+    saveFriends();
+    return { entry, updated: !!existing };
+  }
+
+  $("friendAdd").onclick = async () => {
+    $("friendInfo").textContent = "Hämtar listan…";
+    try {
+      const { entry, updated } = await addFriend($("friendLink").value);
+      $("friendLink").value = "";
+      $("friendInfo").textContent = `✓ ${updated ? "Uppdaterade" : "Lade till"} ${entry.name}s lista (${entry.items.length} titlar).`;
+      renderFriends();
+    } catch (err) { $("friendInfo").textContent = err.message; }
+  };
+  $("friendLink").addEventListener("keydown", e => { if (e.key === "Enter") $("friendAdd").click(); });
+
+  async function refreshFriend(f) {
+    if (!f.url) return;
+    const data = await loadFriendData({ url: f.url });
+    friends = friends.map(x => x.id === f.id ? { ...x, name: (data.owner || "").trim() || x.name, items: data.items || [], saved: data.saved || "", fetched: Date.now() } : x);
+    saveFriends();
+  }
+
+  const sameTitle = (a, b) => (a.tmdbId && a.tmdbId === b.tmdbId) || (a.title.toLowerCase() === b.title.toLowerCase() && a.type === b.type);
+  const inMyList = it => items.some(m => sameTitle(m, it));
+
+  function friendTile(it) {
+    const art = el("div", { className: "art" });
+    if (it.poster) art.append(el("img", { src: posterUrl(it.poster), alt: "", loading: "lazy" }));
+    else art.append(el("div", { className: "ph" }, el("b", { textContent: it.type === "film" ? "🎬" : "📺" }), it.title));
+    const logo = logoFor(it.service);
+    if (logo) art.append(el("img", { className: "logo", src: posterUrl(logo, "w45"), alt: it.service, title: it.service }));
+    if (it.status === "done" && it.rating) art.append(el("div", { className: "bar" }, el("span", { className: "stars-sm", textContent: "★".repeat(it.rating) })));
+    const mark = el("span", { className: "flag" });
+    const setMark = () => { const have = inMyList(it); mark.textContent = have ? "✓ I DIN LISTA" : "+ VILL SE"; mark.style.background = have ? "#2e7d32" : ""; };
+    setMark();
+    art.append(mark);
+    const t = el("button", { type: "button", className: "tile", title: inMyList(it) ? it.title : `Lägg till ${it.title} i din att-se-lista` },
+      art, ...(it.poster ? [el("div", { className: "cap", textContent: it.title })] : []));
+    t.onclick = () => {
+      if (inMyList(it)) return;
+      const { title, type, service, category, year, poster, tmdbId } = it;
+      addItem({ title, type, service: service || "Annan", category: category || "", year: year || "", poster: poster || "", tmdbId: tmdbId || "", status: "want" });
+      setMark();
+      $("friendInfo").textContent = `✓ Lade till ${title} i din att-se-lista.`;
+    };
+    return t;
+  }
+
+  function renderFriends() {
+    const box = $("friendsList");
+    if (!friends.length) {
+      box.replaceChildren(el("p", { className: "empty", textContent: "Inga vänner än. Be en vän skicka sin delningslänk och klistra in den ovan." }));
+      return;
+    }
+    box.replaceChildren(...friends.map(f => {
+      const common = f.items.filter(inMyList).length;
+      const when = f.saved ? new Date(f.saved).toLocaleString("sv-SE", { dateStyle: "short", timeStyle: "short" }) : "";
+      const actions = el("div", { className: "actions" });
+      if (f.url) {
+        const upd = el("button", { type: "button", textContent: "↻ Uppdatera" });
+        upd.onclick = async () => {
+          upd.disabled = true;
+          try { await refreshFriend(f); renderFriends(); }
+          catch (err) { $("friendInfo").textContent = err.message; upd.disabled = false; }
+        };
+        actions.append(upd);
+      }
+      const del = el("button", { type: "button", textContent: "Ta bort" });
+      del.onclick = () => { if (confirm(`Ta bort ${f.name}s lista?`)) { friends = friends.filter(x => x.id !== f.id); saveFriends(); renderFriends(); } };
+      actions.append(del);
+
+      const ROWS = [["watching", "Tittar nu"], ["want", "Vill se"], ["done", "Har sett"]];
+      return el("section", { className: "rowblock friend" },
+        el("div", { className: "fhead" },
+          el("div", {},
+            el("h2", {}, "👤 " + f.name, el("span", { textContent: `${f.items.length} titlar` })),
+            el("div", { className: "note", textContent: [f.url ? "🔴 Livelänk" : "📸 Ögonblicksbild", when && "sparad " + when, common && `${common} gemensamma med dig`].filter(Boolean).join(" · ") })),
+          actions),
+        ...ROWS.map(([st, label]) => {
+          const list = f.items.filter(i => i.status === st);
+          if (!list.length) return "";
+          return el("div", {}, el("h3", { className: "rowlabel", textContent: `${label} (${list.length})` }),
+            el("div", { className: "row" }, ...list.map(friendTile)));
+        }));
+    }));
+  }
+
+  // Öppnades appen via en delningslänk? Lägg till vännen och visa listan.
+  async function handleShareLink() {
+    const hash = location.hash.match(/#dela=([\w-]+)/);
+    const live = new URLSearchParams(location.search).get("van");
+    if (!hash && !live) return;
+    try { history.replaceState(null, "", location.pathname); } catch {} // städa adressfältet
+    showView("friends");
+    $("friendInfo").textContent = "Hämtar den delade listan…";
+    try {
+      const { entry, updated } = await addFriend(hash ? "#dela=" + hash[1] : appUrl() + "?van=" + encodeURIComponent(live));
+      $("friendInfo").textContent = `✓ ${updated ? "Uppdaterade" : "Lade till"} ${entry.name}s lista. Klicka på en affisch för att lägga den i din att-se-lista.`;
+      renderFriends();
+    } catch (err) { $("friendInfo").textContent = err.message; }
+  }
+
+  // =====================================================
   //  ENKEL INLOGGNING
   //  OBS: detta är bara ett lås mot förbipasserande. Allt körs i webbläsaren,
   //  så den som läser källkoden ser användarnamn och lösenord.
@@ -1531,6 +1797,7 @@
     checkEpisodes(); // automatiskt när appen öppnas
     syncGitHub();    // hämta listan från GitHub om det är inställt
     fillArtwork();   // bilder och loggor till listan
+    handleShareLink(); // öppnades appen via någons delningslänk?
   }
   function showLogin() {
     $("app").classList.add("hidden");

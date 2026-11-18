@@ -34,6 +34,7 @@ Appen är en enda HTML-fil och behöver ingen server, inget konto och ingen inst
 | Del | Vad den gör |
 |---|---|
 | **Min lista** | Titlar med tjänst, typ (serie/film), kategori och status: *Tittar nu*, *Vill se* eller *Sett klart*. Avsnittsräknare för serier och betyg 1–5 stjärnor. |
+| **Vänner** | Dela din lista med en länk och se dina vänners listor – lägg till deras titlar med ett klick. |
 | **Bilder** | Liten omslagsbild per titel och logga per tjänst, hämtade från TMDB. |
 | **Sök och filter** | Sök på titel och filtrera på status, tjänst och kategori. Statistik överst. |
 | **Upptäck** | Bläddra bland serier och filmer som finns på svenska streamingtjänster, per tjänst och kategori. Sortera på populärast, bäst betyg eller nyast. |
@@ -180,6 +181,28 @@ avsnittsräknaren då fram till senaste avsnittet.
 
 Serier du lagt till själv kopplas till TMDB via titeln. Om appen hittar en serie med ett annat namn
 står det *kopplad till ”…”* så att du kan se att den valt rätt.
+
+### Dela listor med vänner
+
+Under fliken **Vänner**:
+
+**Dela din lista**
+1. Skriv ditt namn.
+2. Klicka **🔗 Kopiera delningslänk** och skicka länken till dina vänner.
+
+| Länktyp | Hur den fungerar |
+|---|---|
+| **🔗 Delningslänk** | Listan packas ihop i själva länken – en ögonblicksbild av listan just då. Fungerar för alla, inget konto behövs. |
+| **🔴 Livelänk** | Pekar på din listfil i GitHub-repot och visar alltid din senaste lista. Kräver [GitHub-synk](#spara-listan-i-github). |
+
+**Se en väns lista**
+- Öppna länken du fått – efter inloggning läggs vännens lista till under *Vänner*.
+  Du kan också klistra in länken i **Lägg till en väns lista**.
+- Vännens lista visas som affischrader (*Tittar nu*, *Vill se*, *Har sett*) och hur många titlar ni har gemensamt.
+- Klicka på en affisch märkt **+ VILL SE** för att lägga den i din egen att-se-lista.
+- Livelänkar hämtas på nytt med **↻ Uppdatera**.
+
+Vännernas listor sparas bara i din webbläsare. Den som får din länk kan se titlar, status och betyg.
 
 ### Spara och flytta listan
 

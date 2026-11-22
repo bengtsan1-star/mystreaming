@@ -246,6 +246,9 @@
     <label>Lösenord
       <input id="loginPass" type="password" autocomplete="current-password" required>
     </label>
+    <label>Hemligt ord <span class="note">(valfritt – hämtar API-nyckel och GitHub-token)</span>
+      <input id="loginSecret" type="password" autocomplete="off">
+    </label>
     <label class="check"><input id="loginRemember" type="checkbox" checked> Kom ihåg mig på den här enheten</label>
     <button class="primary" type="submit">Logga in</button>
     <p id="loginError" class="error note" style="margin:0"></p>
@@ -333,6 +336,16 @@
         <button id="ghForget" type="button">Koppla från</button>
       </div>
       <p id="ghError" class="error note"></p>
+
+      <h2 style="margin-top:20px">🔐 Hemligt ord</h2>
+      <p class="note">Spara TMDB-nyckeln och GitHub-token krypterade i repot (filen <b>nycklar.json</b>). På en ny enhet räcker det sedan
+        att skriva det hemliga ordet för att få in båda nycklarna. Repot är publikt, så välj ett <b>långt</b> ord eller en fras som är svår att gissa.</p>
+      <div class="grid-form" style="margin:0">
+        <label class="wide">Nytt hemligt ord<input id="vaultWord" type="password" autocomplete="new-password"></label>
+        <label class="wide">Upprepa<input id="vaultWord2" type="password" autocomplete="new-password"></label>
+        <button class="primary" id="vaultSave" type="button">Spara nycklarna krypterat</button>
+      </div>
+      <p id="vaultInfo" class="note"></p>
     </div>
     </div>
 
@@ -368,6 +381,12 @@
         <button class="primary" id="keySave">Spara</button>
       </div>
       <p id="keyError" class="error note"></p>
+      <p class="note" style="margin-top:14px">…eller hämta API-nyckeln och GitHub-token med ditt <b>hemliga ord</b>:</p>
+      <div class="filters" style="margin:0">
+        <input id="unlockWord" type="password" placeholder="Hemligt ord…" autocomplete="off">
+        <button id="unlockBtn">🔑 Hämta nycklar</button>
+      </div>
+      <p id="unlockInfo" class="note"></p>
     </div>
 
     <div id="discoverUI" class="hidden">
@@ -570,6 +589,8 @@
       <ul>
         <li>Logga in med användarnamn <code>stream</code> och lösenord <code>stream</code>.</li>
         <li>Med <b>Kom ihåg mig</b> loggar du bara in en gång per enhet. <b>Logga ut</b> finns uppe till höger.</li>
+        <li><b>Hemligt ord:</b> under 💾 Spara och synka → ⚙️ kan du spara TMDB-nyckeln och GitHub-token krypterade i datarepot.
+          Skriv sedan ordet vid inloggning (eller i TMDB-rutan under Upptäck) på en ny enhet så kommer båda nycklarna in direkt.</li>
         <li>Din lista sparas <b>bara i den här webbläsaren</b> – varje enhet har sin egen lista. Rensar du webbplatsdata försvinner den, så spara till fil ibland.</li>
       </ul>
     </details>
@@ -1065,8 +1086,8 @@
   const toB64 = s => { let bin = ""; new TextEncoder().encode(s).forEach(b => bin += String.fromCharCode(b)); return btoa(bin); };
   const fromB64 = b => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\s/g, "")), c => c.charCodeAt(0)));
 
-  async function ghFile(method, body) {
-    const path = gh.path.split("/").map(encodeURIComponent).join("/");
+  async function ghFile(method, body, file = gh.path) {
+    const path = file.split("/").map(encodeURIComponent).join("/");
     const res = await fetch(`https://api.github.com/repos/${gh.repo}/contents/${path}`, {
       method, cache: "no-store",
       headers: { Authorization: "Bearer " + gh.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
@@ -1270,6 +1291,98 @@
     }
   };
   $("keyChange").onclick = () => { apiKey = ""; store.set(TMDB_KEY, null); discoverReady = false; showKeyBox(); };
+
+  // =====================================================
+  //  HEMLIGT ORD: TMDB-nyckel och GitHub-token sparas krypterade
+  //  (AES-GCM, nyckel från ordet via PBKDF2) i nycklar.json i datarepot.
+  //  Filen är publik, så säkerheten hänger helt på att ordet är svårt att gissa.
+  // =====================================================
+  const VAULT_REPO = "bengtsan1-star/mystreaming-data";
+  const VAULT_FILE = "nycklar.json";
+  const VAULT_ITER = 600000;
+  const bytesToB64 = u8 => { let s = ""; u8.forEach(b => s += String.fromCharCode(b)); return btoa(s); };
+  const b64ToBytes = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+
+  async function wordKey(word, salt, iter) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(word), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations: iter },
+      base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+
+  async function lockSecrets(word, secrets) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await wordKey(word, salt, VAULT_ITER);
+    const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(secrets))));
+    return { app: "mystreaming", version: 1, kdf: "PBKDF2-SHA256", iterations: VAULT_ITER,
+      salt: bytesToB64(salt), iv: bytesToB64(iv), data: bytesToB64(data) };
+  }
+
+  async function unlockSecrets(word) {
+    const repo = gh.repo || VAULT_REPO;
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${VAULT_FILE}`,
+      { cache: "no-store", headers: { Accept: "application/vnd.github.raw+json" } });
+    if (res.status === 404) throw new Error("Det finns inga sparade nycklar än. Spara dem först under 💾 Spara och synka → ⚙️.");
+    if (!res.ok) throw new Error("Kunde inte hämta nycklarna från GitHub (fel " + res.status + ").");
+    const v = await res.json();
+    const key = await wordKey(word, b64ToBytes(v.salt), v.iterations);
+    let plain;
+    try { plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(v.iv) }, key, b64ToBytes(v.data)); }
+    catch { throw new Error("Fel hemligt ord."); }
+    const s = JSON.parse(new TextDecoder().decode(plain));
+    if (s.tmdb) { apiKey = s.tmdb; store.set(TMDB_KEY, s.tmdb); discoverReady = false; }
+    if (s.gh?.token) { gh = s.gh; store.set(GH_KEY, JSON.stringify(gh)); fillGhForm(); }
+    return s;
+  }
+
+  // Efter upplåsning när appen redan visas: kör igång allt som behöver nycklarna
+  function afterUnlock() {
+    syncGitHub();
+    fillArtwork();
+    if (!$("view-discover").classList.contains("hidden")) initDiscover();
+  }
+  const unlockedText = s => "✅ Hämtade " + [s.tmdb && "TMDB-nyckel", s.gh?.token && "GitHub-token"].filter(Boolean).join(" och ") + ".";
+
+  $("unlockBtn").onclick = async () => {
+    const word = $("unlockWord").value;
+    if (!word) return;
+    $("unlockInfo").classList.remove("error");
+    $("unlockInfo").textContent = "Låser upp…";
+    try {
+      const s = await unlockSecrets(word);
+      $("unlockWord").value = "";
+      $("unlockInfo").textContent = unlockedText(s);
+      afterUnlock();
+    } catch (err) {
+      $("unlockInfo").classList.add("error");
+      $("unlockInfo").textContent = err.message;
+    }
+  };
+
+  $("vaultSave").onclick = async () => {
+    const info = $("vaultInfo");
+    const word = $("vaultWord").value, word2 = $("vaultWord2").value;
+    const fail = msg => { info.classList.add("error"); info.textContent = msg; };
+    info.classList.remove("error");
+    if (!ghReady()) return fail("Fyll i och spara GitHub-inställningarna ovan först – token behövs för att spara filen.");
+    if (!apiKey) return fail("Lägg in TMDB-nyckeln under Upptäck först, så att båda nycklarna kommer med.");
+    if (word.length < 12) return fail("Välj ett hemligt ord på minst 12 tecken – gärna flera ord.");
+    if (word !== word2) return fail("Orden är inte lika.");
+    info.textContent = "Krypterar och sparar…";
+    try {
+      const vault = await lockSecrets(word, { tmdb: apiKey, gh: { repo: gh.repo, path: gh.path, token: gh.token } });
+      const old = await ghFile("GET", null, VAULT_FILE);
+      await ghFile("PUT", {
+        message: "Uppdatera krypterade nycklar",
+        content: toB64(JSON.stringify(vault, null, 2)),
+        ...(old ? { sha: old.sha } : {}),
+      }, VAULT_FILE);
+      $("vaultWord").value = $("vaultWord2").value = "";
+      info.textContent = "🔐 Nycklarna är sparade. Skriv det hemliga ordet vid inloggning på en ny enhet.";
+    } catch (err) {
+      fail(err.message);
+    }
+  };
 
   $("dType").addEventListener("change", async () => {
     try { await fillSelects(); search(true); } catch (err) { $("dInfo").textContent = err.message; }
@@ -1806,7 +1919,7 @@
     $("loginUser").focus();
   }
 
-  $("loginForm").addEventListener("submit", e => {
+  $("loginForm").addEventListener("submit", async e => {
     e.preventDefault();
     const ok = $("loginUser").value.trim() === LOGIN_USER && $("loginPass").value === LOGIN_PASS;
     if (!ok) {
@@ -1814,6 +1927,19 @@
       $("loginPass").value = "";
       $("loginPass").focus();
       return;
+    }
+    // Hemligt ord: hämta nycklarna innan appen visas, så synk och bilder kommer igång direkt
+    const word = $("loginSecret").value;
+    if (word) {
+      $("loginError").textContent = "Hämtar nycklar…";
+      try { await unlockSecrets(word); }
+      catch (err) {
+        $("loginError").textContent = err.message;
+        $("loginSecret").value = "";
+        $("loginSecret").focus();
+        return;
+      }
+      $("loginSecret").value = "";
     }
     $("loginError").textContent = "";
     if ($("loginRemember").checked) store.set(AUTH_KEY, "1");

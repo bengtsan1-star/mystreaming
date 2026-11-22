@@ -214,6 +214,10 @@ Knapparna under **💾 Spara och synka** i *Min lista*:
 | **📊 Exportera till Excel (CSV)** | Sparar listan som en tabell som går att öppna i Excel eller Numbers. |
 | **📂 Läs in fil** | Läser in en sparad JSON-fil. Titlarna slås ihop med din lista – samma titel blir aldrig dubbel, och den senast ändrade versionen behålls. |
 
+**Fråga om att spara:** när du ändrat i listan visas en ruta längst ner som frågar om du vill spara.
+**Spara** sparar till GitHub om du ställt in synk, annars till en fil. **Inte nu** döljer rutan tills nästa ändring.
+Ändringarna finns alltid kvar i webbläsaren, och stänger du sidan med osparade ändringar varnar webbläsaren.
+
 **Flytta listan till en annan dator eller mobil:** spara till fil på den ena enheten och läs in
 filen på den andra – eller använd GitHub-synk nedan.
 
@@ -238,7 +242,7 @@ samma lista på alla enheter.
 5. I appen under *Min lista*: klicka **💾 Spara och synka** → **⚙️**, klistra in token och klicka **Spara och synka**.
 
 **Så fungerar synken**
-- Appen synkar automatiskt när den öppnas och några sekunder efter varje ändring.
+- Appen synkar automatiskt när den öppnas. Efter en ändring frågar den om du vill spara – **Spara** synkar.
   **☁️ Synka med GitHub** synkar direkt.
 - Ändringar från flera enheter slås ihop: den senast ändrade versionen av en titel vinner,
   och borttagna titlar förblir borttagna.

@@ -198,6 +198,15 @@
   .rowlabel { font-size: 14px; color: var(--muted); margin: 10px 0 0; font-weight: 600; }
   .friend .tile .flag { top: auto; bottom: 6px; right: 6px; }
 
+  /* Fråga om att spara */
+  .savebar { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 40;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center;
+    width: min(560px, calc(100% - 32px)); padding: 12px 16px; border-radius: var(--radius);
+    background: var(--card); border: 1px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,.55);
+    animation: rise .2s ease-out; }
+  .savebar .savebtns { display: flex; gap: 8px; }
+  @keyframes rise { from { transform: translate(-50%, 20px); opacity: 0; } }
+
   /* Detaljruta */
   dialog#detail { border: none; padding: 0; background: var(--card); color: var(--text); border-radius: var(--radius);
     width: min(680px, 94vw); max-height: 90vh; box-shadow: 0 20px 60px rgba(0,0,0,.7); }
@@ -320,7 +329,7 @@
     <div id="ghSettings" class="card hidden" style="margin-bottom:16px">
       <h2>☁️ Spara listan i GitHub</h2>
       <p class="note">Listan sparas som en fil i GitHub-repot <b>mystreaming-data</b>, så du har samma lista på alla enheter.
-        Appen synkar automatiskt när du öppnar den och efter varje ändring.
+        Appen synkar när du öppnar den, och efter en ändring frågar den om du vill spara.
         🌍 Repot är <b>publikt</b> – vem som helst kan läsa listan.</p>
       <ol class="note" style="padding-left:20px">
         <li>Skapa en token på <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Fine-grained token</a>.</li>
@@ -557,6 +566,9 @@
         <li><b>📊 Exportera till Excel (CSV)</b> – listan som tabell för Excel eller Numbers.</li>
         <li><b>📂 Läs in fil</b> – läser in en sparad JSON-fil. Titlarna slås ihop med din lista utan dubbletter.</li>
       </ul>
+      <p><b>Fråga om att spara:</b> när du ändrat i listan visas en ruta längst ner – <i>Vill du spara?</i>
+        Klicka <b>Spara</b> för att spara till GitHub (om du ställt in synk) eller till en fil, eller <b>Inte nu</b> så frågar appen igen vid nästa ändring.
+        Ändringarna finns alltid kvar i webbläsaren på enheten, och stänger du sidan med osparade ändringar varnar webbläsaren.</p>
       <p><b>Flytta till mobilen eller en annan dator:</b> spara till fil på den ena enheten och läs in filen på den andra – eller använd GitHub-synk nedan.</p>
     </details>
 
@@ -576,7 +588,7 @@
       </ol>
       <h3>Så fungerar synken</h3>
       <ul>
-        <li>Appen synkar automatiskt när du öppnar den och några sekunder efter varje ändring.</li>
+        <li>Appen synkar automatiskt när du öppnar den. Efter en ändring frågar den om du vill spara – <b>Spara</b> synkar.</li>
         <li><b>☁️ Synka med GitHub</b> synkar direkt.</li>
         <li>Ändringar från flera enheter slås ihop – den senast ändrade versionen av en titel vinner, och borttagna titlar förblir borttagna.</li>
         <li><b>Koppla från</b> (under ⚙️) stänger av synken på enheten. Listan finns kvar både lokalt och på GitHub.</li>
@@ -620,6 +632,14 @@
       Källkod: <a href="https://github.com/bengtsan1-star/mystreaming" target="_blank" rel="noopener">github.com/bengtsan1-star/mystreaming</a></p>
   </section>
 </main>
+
+<div id="saveBar" class="savebar hidden" role="alertdialog" aria-live="polite" aria-labelledby="saveBarText">
+  <span id="saveBarText">Du har ändrat i listan. Vill du spara?</span>
+  <span class="savebtns">
+    <button id="saveYes" type="button" class="primary">Spara</button>
+    <button id="saveNo" type="button">Inte nu</button>
+  </span>
+</div>
 
 <dialog id="detail" aria-label="Detaljer">
   <button class="close" type="button" aria-label="Stäng">✕</button>
@@ -712,7 +732,7 @@
     store.set(KEY, JSON.stringify(items));
     store.set(DELETED_KEY, JSON.stringify(deleted));
     render();
-    if (!fromSync) scheduleSync();
+    if (!fromSync) markDirty(); // fråga om användaren vill spara
   }
   function removeItem(id) {
     deleted[id] = Date.now();
@@ -1045,7 +1065,40 @@
       JSON.stringify({ app: "mystreaming", version: 1, saved: new Date().toISOString(), items, deleted }, null, 2),
       "application/json");
     setSyncInfo(`Sparade ${items.length} titlar till fil (hamnar i Hämtade filer).`);
+    if (!ghReady()) clearDirty();
   };
+
+  // ---------- Fråga om att spara efter ändringar ----------
+  var dirtySince = 0;
+  function markDirty() {
+    dirtySince = Date.now();
+    $("saveBarText").textContent = ghReady()
+      ? "Du har ändrat i listan. Vill du spara till GitHub?"
+      : "Du har ändrat i listan. Vill du spara listan till en fil?";
+    $("saveBar").classList.remove("hidden");
+  }
+  function clearDirty() {
+    dirtySince = 0;
+    $("saveBar").classList.add("hidden");
+  }
+  $("saveYes").onclick = async () => {
+    if (ghReady()) {
+      $("saveYes").disabled = true;
+      $("saveBarText").textContent = "Sparar till GitHub…";
+      const ok = await syncGitHub(true);
+      $("saveYes").disabled = false;
+      if (!ok) $("saveBarText").textContent = "Det gick inte att spara till GitHub – se meddelandet i Min lista.";
+    } else {
+      $("exportJson").click();
+    }
+  };
+  $("saveNo").onclick = () => $("saveBar").classList.add("hidden"); // frågar igen vid nästa ändring
+  // Varna om man stänger sidan med osparade ändringar
+  window.addEventListener("beforeunload", e => {
+    if (!dirtySince) return;
+    e.preventDefault();
+    e.returnValue = "";
+  });
 
   // CSV: för att öppna listan i Excel/Numbers (semikolon passar svensk Excel)
   $("exportCsv").onclick = () => {
@@ -1112,6 +1165,7 @@
   }
 
   async function syncGitHub(manual = false) {
+    const startedAt = Date.now();
     if (!ghReady()) {
       if (manual) { $("toolsPanel").classList.remove("hidden"); $("ghSettings").classList.remove("hidden"); setSyncInfo("Fyll i GitHub-inställningarna för att kunna synka."); }
       return false;
@@ -1147,6 +1201,7 @@
       const news = [result.added && `${result.added} nya`, result.changed && `${result.changed} uppdaterade`, result.removed && `${result.removed} borttagna`].filter(Boolean);
       setSyncInfo(`☁️ Synkat med GitHub ${time}${news.length ? " – " + news.join(", ") + " från andra enheter" : ""}.`);
       $("ghError").textContent = "";
+      if (dirtySince <= startedAt) clearDirty(); // inga nya ändringar under synken
       return true;
     } catch (err) {
       setSyncInfo("☁️ " + err.message, true);
@@ -1677,7 +1732,7 @@
     // Uppdatera utan att ändra sorteringen (updated rörs inte)
     items = items.map(it => byId[it.id] ? { ...it, ...byId[it.id] } : it);
     if (!onlyIds) store.set(LASTCHECK_KEY, String(Date.now()));
-    save();
+    save(true);
     const failed = results.length - Object.keys(byId).length;
     if (failed && info()) info().textContent = `Kunde inte kolla ${failed} serier – försök igen senare.`;
   }
